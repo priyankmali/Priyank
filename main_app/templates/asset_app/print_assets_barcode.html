@@ -1,0 +1,272 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Control Form (will be hidden when printing) -->
+    <div class="card mb-4 no-print">
+        <div class="card-body">
+            <form method="post" action="{% url 'asset_app:print_all_barcode' %}" id="print-form">
+                {% csrf_token %}
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-2">
+                        <button type="submit" name="print_all" value="true" class="btn btn-success btn-lg btn-block">
+                            <i class="fas fa-print mr-2"></i>Print All Barcodes
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="submit" name="print_selected" value="true" class="btn btn-info btn-lg btn-block">
+                            <i class="fas fa-check-circle mr-2"></i>Print Selected Barcodes
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <div class="form-group">
+                            <input name="search" type="text" id="search-input" class="form-control" 
+                                   placeholder="Search by serial number or name..." value="{{ search_query|default:'' }}">
+                        </div>
+                    </div>
+                </div>
+                
+                {% if error_message %}
+                <div class="alert alert-danger">{{ error_message }}</div>
+                {% endif %}
+                
+                <div class="table-responsive" id="asset-table-container">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th><input type="checkbox" id="selectAll"></th>
+                                <th>Category</th>
+                                <th>Serial Number</th>
+                                <th>Barcode</th>
+                            </tr>
+                        </thead>
+                        <tbody id="asset-table">
+                            {% for asset in assets %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="selected_assets" 
+                                           value="{{ asset.id }}" class="asset-checkbox">
+                                </td>
+                                <td>{{ asset.asset_category }}</td>
+                                <td>{{ asset.asset_serial_number }}</td>
+                                <td>
+                                    {% if asset.barcode %}
+                                        <img src="{{ asset.barcode.url }}" alt="Barcode" style="height: 40px;">
+                                    {% else %}
+                                        <span class="text-muted">No barcode</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No assets found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <nav aria-label="Page navigation" class="d-flex justify-content-center mt-4">
+                        <ul class="pagination">
+                            {% if assets.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link pagination-link" 
+                                   href="?page={{ assets.previous_page_number }}" 
+                                   data-page="{{ assets.previous_page_number }}">«</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link">«</span></li>
+                            {% endif %}
+
+                            {% for num in assets.paginator.page_range %}
+                                {% if assets.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > assets.number|add:'-3' and num < assets.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link pagination-link" 
+                                           href="?page={{ num }}" 
+                                           data-page="{{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if assets.has_next %}
+                            <li class="page-item">
+                                <a class="page-link pagination-link" 
+                                   href="?page={{ assets.next_page_number }}" 
+                                   data-page="{{ assets.next_page_number }}">»</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link">»</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if show_print_view %}
+    <div class="card print-area">
+        <div class="card-body">
+            <div class="text-center mb-4 no-print">
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="fas fa-print mr-2"></i>Print Now
+                </button>
+            </div>
+            
+            <div class="row">
+                {% for asset in assets_to_print %}
+                <div class="col-md-3 mb-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            {% if asset.barcode %}
+                                <img src="{{ asset.barcode.url }}" alt="Barcode" class="img-fluid mb-2" style="max-height: 50px;">
+                            {% else %}
+                                <div class="alert alert-warning">No barcode generated</div>
+                            {% endif %}
+                            <h6 class="font-weight-bold">{{ asset.asset_serial_number }}</h6>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if forloop.counter|divisibleby:24 and not forloop.last %}
+                    </div>
+                    <div class="page-break"></div>
+                    <div class="row">
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        .print-area {
+            border: none !important;
+        }
+        
+        .card {
+            page-break-inside: avoid;
+        }
+        
+        .page-break {
+            page-break-after: always;
+        }
+        
+        body {
+            background: white !important;
+            color: black !important;
+        }
+    }
+    
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Handle pagination clicks
+    $(document).on('click', '.pagination-link', function(e) {
+        e.preventDefault();
+        var page = $(this).data('page');
+        var searchQuery = $('#search-input').val();
+
+        $.ajax({
+            url: "{% url 'asset_app:print_all_barcode' %}",
+            type: 'GET',
+            data: {
+                page: page,
+                search: searchQuery
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(html) {
+                // Create a temporary container to parse the full HTML
+                var $temp = $('<div>').html(html);
+                // Extract only the #asset-table-container content
+                var $newContent = $temp.find('#asset-table-container').html();
+                // Update the existing container
+                $('#asset-table-container').html($newContent);
+                // Update browser URL without reloading
+                var url = new URL(window.location);
+                url.searchParams.set('page', page);
+                if (searchQuery) {
+                    url.searchParams.set('search', searchQuery);
+                } else {
+                    url.searchParams.delete('search');
+                }
+                window.history.pushState({}, '', url);
+            },
+            error: function(xhr, status, error) {
+                console.error('Pagination AJAX failed:', error);
+                alert('Error loading page. Please try again.');
+            }
+        });
+    });
+
+    // Handle search input
+    $(document).on('input', '#search-input', function() {
+        var searchQuery = $(this).val();
+        
+        $.ajax({
+            url: "{% url 'asset_app:print_all_barcode' %}",
+            type: 'POST',
+            data: {
+                search: searchQuery,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(html) {
+                // Create a temporary container to parse the full HTML
+                var $temp = $('<div>').html(html);
+                // Extract only the #asset-table-container content
+                var $newContent = $temp.find('#asset-table-container').html();
+                // Update the existing container
+                $('#asset-table-container').html($newContent);
+                // Update browser URL without reloading
+                var url = new URL(window.location);
+                if (searchQuery) {
+                    url.searchParams.set('search', searchQuery);
+                } else {
+                    url.searchParams.delete('search');
+                }
+                url.searchParams.delete('page');
+                window.history.pushState({}, '', url);
+            },
+            error: function(xhr, status, error) {
+                console.error('Search AJAX failed:', error);
+                alert('Error performing search. Please try again.');
+            }
+        });
+    });
+
+    // Handle select all checkbox
+    $(document).on('click', '#selectAll', function() {
+        $('.asset-checkbox').prop('checked', $(this).prop('checked'));
+    });
+
+    // Handle browser back/forward buttons
+    window.onpopstate = function(event) {
+        window.location.reload(); // Reload to ensure correct state
+    };
+});
+</script>
+{% endblock %}

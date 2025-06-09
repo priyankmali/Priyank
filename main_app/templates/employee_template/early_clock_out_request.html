@@ -1,0 +1,255 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}Early Clock-Out Request{% endblock page_title %}
+
+{% block custom_css %}
+<style>
+    .card-dark {
+        border-color: #343a40;
+    }
+    .card-dark .card-header {
+        border-bottom-color: #454d55;
+        background: linear-gradient(45deg, #343a40, #495057);
+    }
+    .card-title {
+        font-weight: 600;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .alert {
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock custom_css %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="card card-dark shadow-lg">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-clock mr-2"></i>
+                    <strong>Request Early Clock-Out</strong>
+                </h3>
+            </div>
+            <div class="card-body">
+                {% if has_active_attendance %}
+                    {% if request_status == 'pending' %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Your early clock-out request is pending approval.
+                        </div>
+                    {% elif request_status == 'approved' %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Your early clock-out request has been approved. You can now clock out on the home page.
+                        </div>
+                    {% elif request_status == 'denied' %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            Your early clock-out request was denied. Reason: {{ request_message|default:"No reason provided" }}
+                        </div>
+                    {% endif %}
+
+                    {% if request_status != 'pending' and request_status != 'approved' %}
+                        <form id="earlyClockOutForm">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="reason">Reason for Early Clock-Out</label>
+                                <textarea class="form-control" id="reason" name="reason" rows="4" placeholder="Enter your reason here..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary rounded-pill px-4">
+                                <i class="fas fa-clock mr-2"></i> Submit Request
+                            </button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        No active attendance record found. Please clock in to request an early clock-out.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Include SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let lastStatus = localStorage.getItem('earlyClockOutStatus') || 'none';
+
+        // Function to mark notification as read
+        function markNotificationRead(notificationId, notificationType) {
+            return fetch("{% url 'mark_notification_read' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    notification_id: notificationId,
+                    notification_type: notificationType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    console.error('Failed to mark notification as read:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error marking notification as read:', error);
+            });
+        }
+
+        // Check early clock-out status periodically
+        function checkEarlyClockOutStatus() {
+            fetch("{% url 'check_early_clock_out_status' %}", {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success' && data.request_status !== localStorage.getItem('earlyClockOutStatus')) {
+                    lastStatus = data.request_status;
+                    localStorage.setItem('earlyClockOutStatus', lastStatus);
+
+                    if (data.request_status === 'approved') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Early Clock-Out Approved',
+                            text: 'You can now clock out on the home page.',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#3085d6',
+                            allowOutsideClick: false
+                        }).then((result) => {
+                            if (result.isConfirmed && data.notification_id) {
+                                markNotificationRead(data.notification_id, 'clockout-notification')
+                                    .then(() => window.location.reload());
+                            } else {
+                                window.location.reload();
+                            }
+                        });
+                    } else if (data.request_status === 'denied') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Early Clock-Out Denied',
+                            text: data.message || 'No reason provided',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#3085d6',
+                            allowOutsideClick: false
+                        }).then((result) => {
+                            if (result.isConfirmed && data.notification_id) {
+                                markNotificationRead(data.notification_id, 'clockout-notification')
+                                .then(() => window.location.reload());
+                            } else {
+                                window.location.reload();
+                            }
+                        });
+                    } else if (data.request_status === 'pending') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Request Pending',
+                            text: 'Your early clock-out request is awaiting manager approval.',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#3085d6',
+                            allowOutsideClick: false 
+                        }).then((result) => {
+                            if (result.isConfirmed && data.notification_id) {
+                                markNotificationRead(data.notification_id, 'notification-from-manager')
+                                .then(() => window.location.reload());
+                            } else {
+                                window.location.reload();
+                            }
+                        });
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error checking early clock-out status:', error);
+            });
+        }
+
+        // Handle form submission
+        const earlyClockOutForm = document.getElementById('earlyClockOutForm');
+        if (earlyClockOutForm) {
+            earlyClockOutForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const reason = document.getElementById('reason').value.trim();
+
+                if (!reason) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Please provide a reason for early clock Chicago, IL, USAout.',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#3085d6'
+                    });
+                    return;
+                }
+
+        fetch("{% url 'early_clock_out_request' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                localStorage.setItem('earlyClockOutStatus', 'pending');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Request Submitted',
+                    text: 'Your early clock-out request has been sent to your manager.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3085d6'
+                }).then((result) => {
+                    if (result.isConfirmed && data.notification_id) {
+                        markNotificationRead(data.notification_id, 'clockout-notification')
+                            .then(() => window.location.reload());
+                    } else {
+                        window.location.reload();
+                    }
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Failed to submit early clock-out request.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3085d6'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error submitting early clock-out request:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to communicate with the server. Please try again.',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#3085d6'
+            });
+        });
+    });
+}
+
+        {% if has_active_attendance %}
+            checkEarlyClockOutStatus();
+        {% endif %} 
+    });
+</script>
+{% endblock content %}

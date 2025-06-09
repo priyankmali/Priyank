@@ -1,0 +1,419 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block custom_css %}
+    <style>
+        /* Status Badges */
+        .badge-pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-in-progress {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .badge-resolved {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-rejected {
+            background-color: #dc3545;
+            color: white;
+        }
+        /* Unread dot */
+        .unread-dot {
+            font-size: 8px;
+            margin-left: 5px;
+            margin-top: 15px;
+            color: #dc3545;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Leave Application Form -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-info text-white">
+            <h3 class="card-title">
+                <i class="fas fa-paper-plane mr-2"></i> Apply for Leave
+            </h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{% url 'manager_apply_leave' %}" id="leaveForm">
+                {% csrf_token %}
+                
+                <!-- Leave Type -->
+                <div class="form-group">
+                    <label for="id_leave_type">Leave Type</label>
+                    <select class="form-control" name="leave_type" id="id_leave_type" required>
+                        <option value="">Select Leave Type</option>
+                        <option value="Full-Day">Full Day</option>
+                        <option value="Half-Day">Half Day</option>
+                    </select>
+                </div>
+
+                <!-- Half Day Type (Conditional) -->
+                <div class="form-group" id="half_day_type_group" style="display: none;">
+                    <label for="id_half_day_type">Half Day Type</label>
+                    <select class="form-control" name="half_day_type" id="id_half_day_type">
+                        <option value="">Select Half Day Type</option>
+                        <option value="First Half">First Half</option>
+                        <option value="Second Half">Second Half</option>
+                    </select>
+                </div>
+
+                <!-- Start Date -->
+                <div class="form-group">
+                    <label for="id_start_date">Start Date</label>
+                    <input type="date" class="form-control" name="start_date" id="id_start_date" required>
+                </div>
+
+                <!-- End Date -->
+                <div class="form-group">
+                    <label for="id_end_date">End Date</label>
+                    <input type="date" class="form-control" name="end_date" id="id_end_date">
+                    <small class="text-muted">For single day leave, enter same as start date</small>
+                </div>
+
+                <!-- Message -->
+                <div class="form-group">
+                    <label for="id_message">Message</label>
+                    <textarea class="form-control" name="message" id="id_message" rows="3" placeholder="Enter reason for leave" required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane mr-2"></i> Submit Leave Request
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leave History Table -->
+    <div id="leave-history-container">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h3 class="card-title">
+                    <i class="fas fa-history mr-2"></i> Leave History
+                </h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>No</th>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Message</th>
+                                <th>Status</th>
+                                <th>View</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in leave_page %}
+                            <tr>
+                                <td>{{ leave_page.start_index|add:forloop.counter0 }}</td>
+                                <td>{{ leave.start_date|date:"M d, Y" }}{% if leave.end_date != leave.start_date %} - {{ leave.end_date|date:"M d, Y" }}{% endif %}</td>
+                                <td>
+                                    {{ leave.get_leave_type_display }}
+                                    {% if leave.half_day_type %} - {{ leave.half_day_type }}{% endif %}
+                                </td>
+                                <td>
+                                    {% if leave.message|length > 60 %}
+                                        {{ leave.message|truncatechars:60 }}
+                                        <a href="#" data-toggle="modal" data-target="#leaveDetailsModal{{ leave_page.start_index|add:forloop.counter0 }}" class="text-primary" onclick="markNotificationRead({{ leave.id }} , 'manager-leave-notification' )">Read More</a>
+                                    {% else %}
+                                        {{ leave.message }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if leave.status == 0 %}
+                                        <span class="badge badge-warning">Pending</span>
+                                    {% elif leave.status == 1 %}
+                                        <span class="badge badge-success">Approved</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">Rejected</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-info"
+                                            data-toggle="modal"
+                                            data-target="#leaveDetailsModal{{ leave_page.start_index|add:forloop.counter0 }}"
+                                            onclick="markNotificationRead({{ leave.id }} , 'manager-leave-notification' )">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if leave.id in unread_ids %}
+                                        <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                    {% endif %}
+                                    
+                                    <!-- Modal -->
+                                    <div class="modal fade leave-modal" id="leaveDetailsModal{{ leave_page.start_index|add:forloop.counter0 }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                        <div class="modal-dialog" role="document">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-primary text-white">
+                                                    <h5 class="modal-title">Leave Request Details</h5>
+                                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                        <span aria-hidden="true">&times;</span>
+                                                    </button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="row mb-3">
+                                                        <div class="col-md-6">
+                                                            <p><strong>Date:</strong> {{ leave.start_date|date:"M d, Y" }}{% if leave.end_date != leave.start_date %} - {{ leave.end_date|date:"M d, Y" }}{% endif %}</p>
+                                                            <p><strong>Type:</strong> 
+                                                                {{ leave.get_leave_type_display }}
+                                                                {% if leave.half_day_type %} - {{ leave.half_day_type }}{% endif %}
+                                                            </p>
+                                                            <p><strong>Status:</strong> 
+                                                                {% if leave.status == 0 %}
+                                                                    <span class="badge badge-warning">Pending</span>
+                                                                {% elif leave.status == 1 %}
+                                                                    <span class="badge badge-success">Approved</span>
+                                                                {% else %}
+                                                                    <span class="badge badge-danger">Rejected</span>
+                                                                {% endif %}
+                                                            </p>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <p><strong>Team Lead Comments:</strong></p>
+                                                            <div class="bg-light p-2 rounded">
+                                                                {{ leave.comments|default:"No comments" }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label><strong>Your Message:</strong></label>
+                                                        <div class="bg-light p-3 rounded">
+                                                            {{ leave.message }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <i class="far fa-calendar-times fa-2x text-muted mb-2"></i>
+                                    <h5 class="text-muted">No Leave History Found</h5>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="card-footer text-center">
+                        <nav>
+                            <ul class="pagination justify-content-center">
+                                {% if leave_page.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ leave_page.previous_page_number }}">&laquo;</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">&laquo;</span>
+                                    </li>
+                                {% endif %}
+                    
+                                {% for page_num in leave_page.paginator.page_range %}
+                                    {% if page_num == leave_page.number %}
+                                        <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                                    {% else %}
+                                        <li class="page-item"><a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a></li>
+                                    {% endif %}
+                                {% endfor %}
+                    
+                                {% if leave_page.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ leave_page.next_page_number }}">&raquo;</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">&raquo;</span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+        const modals = document.querySelectorAll('.modal.fade-notifications');
+        modals.forEach(modal => {
+            modal.addEventListener('hidden.bs.modal', function() {
+                // Remove mark_read parameter to prevent re-marking
+                const url = new URL(window.location.href);
+                url.searchParams.delete('mark_read');
+                window.location.href = url.toString();
+                });
+            });
+        });
+        function getCSRFToken() {
+            const name = 'csrftoken';
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith(name + '='))
+                ?.split('=')[1];
+            return cookieValue;
+        }
+
+        function markNotificationRead(notificationId, notificationType) {
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            const csrftoken = getCookie('csrftoken');
+
+            fetch('{% url "mark_notification_read" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    'notification_id': notificationId,
+                    'notification_type': notificationType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Remove unread dot
+                    const unreadDot = document.querySelector(`tr[data-notification-id="${notificationId}"] .unread-dot`);
+                    if (unreadDot) {
+                        unreadDot.style.display = 'none';
+                    }
+                } else {
+                    console.error('Failed to mark notification as read:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Reload page when any modal with class `leave-modal` is closed
+        document.addEventListener('DOMContentLoaded', function () {
+            $('.leave-modal').on('hidden.bs.modal', function () {
+                location.reload();
+        });
+
+            // Get form elements
+            const leaveTypeSelect = document.getElementById('id_leave_type');
+            const halfDayGroup = document.getElementById('half_day_type_group');
+            const halfDayType = document.getElementById('id_half_day_type');
+            const startDate = document.getElementById('id_start_date');
+            const endDate = document.getElementById('id_end_date');
+
+            // Set minimum dates to today
+            const today = new Date().toISOString().split('T')[0];
+            startDate.min = today;
+            endDate.min = today;
+
+            // Handle leave type change
+            leaveTypeSelect.addEventListener('change', function() {
+                if (this.value === 'Half-Day') {
+                    // Show half day options
+                    halfDayGroup.style.display = 'block';
+                    halfDayType.required = true;
+                    
+                    // When Half-Day is selected:
+                    // 1. Copy start date to end date
+                    if (startDate.value) {
+                        endDate.value = startDate.value;
+                    }
+                    // 2. Disable end date field
+                    endDate.disabled = true;
+                } else {
+                    // Hide half day options
+                    halfDayGroup.style.display = 'none';
+                    halfDayType.required = false;
+                    halfDayType.value = '';
+                    
+                    // Enable end date field for Full-Day
+                    endDate.disabled = false;
+                }
+            });
+
+            // Handle start date change
+            startDate.addEventListener('change', function() {
+                // Update end date minimum
+                endDate.min = this.value;
+                
+                // If Half-Day is selected, sync end date with start date
+                if (leaveTypeSelect.value === 'Half-Day') {
+                    endDate.value = this.value;
+                } else if (endDate.value && endDate.value < this.value) {
+                    // For Full-Day, ensure end date isn't before start
+                    endDate.value = this.value;
+                }
+            });
+
+            // Additional validation to prevent manual changes to end date for Half-Day
+            endDate.addEventListener('change', function() {
+                if (leaveTypeSelect.value === 'Half-Day' && this.value !== startDate.value) {
+                    alert('For Half-Day leaves, end date must be same as start date');
+                    this.value = startDate.value;
+                }
+            });
+
+            // Automatically open calendar when clicking on date input
+            document.querySelectorAll("input[type='date']").forEach(function(input) {
+                input.addEventListener("click", function () {
+                    if (this.showPicker) {
+                        this.showPicker();  // Supported in modern browsers
+                    }
+                });
+            });
+
+            // pagination
+            document.querySelector('#leave-history-container').addEventListener('click', function (e) {
+                const target = e.target.closest('a.page-link');
+                if (target) {
+                    e.preventDefault();
+                    fetch(target.href, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newSection = doc.querySelector('#leave-history-container');
+                        if (newSection) {
+                            document.querySelector('#leave-history-container').innerHTML = newSection.innerHTML;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Pagination AJAX failed:', error);
+                    });
+                }
+            });
+        });
+    </script>
+{% endblock %}
+

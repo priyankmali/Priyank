@@ -1,0 +1,835 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block custom_css %}
+    <style>
+        .img-size-32 {
+            width: 32px;
+            height: 32px;
+            object-fit: cover;
+        }
+        .table td, .table th {
+            vertical-align: middle;
+        }
+        .btn-group .btn-sm {
+            padding: 0.25rem 0.5rem;
+        }
+        .font-monospace {
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        tr[data-href] {
+            cursor: pointer;
+        }
+        tr[data-href]:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+    </style>
+{% endblock custom_css %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card card-secondary card-outline">
+                    <div class="card-header">
+                        <div class="card-tools">
+                            <form method="get" class="form-inline" id="searchForm">
+                                <div class="input-group input-group-sm mr-2">
+                                    <input type="text" name="search" id="searchInput" class="form-control" 
+                                        placeholder="Search by name or email..." value="{{ request.GET.search }}">
+                                    <div class="input-group-append">
+                                        <button type="submit" class="btn btn-default" id="searchBtn">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group mr-2">
+                                    <select name="gender" class="form-control form-control-sm" id="genderFilter" onchange="this.form.submit()">
+                                        <option value="">All Genders</option>
+                                        <option value="M" {% if request.GET.gender == 'M' %}selected{% endif %}>Male</option>
+                                        <option value="F" {% if request.GET.gender == 'F' %}selected{% endif %}>Female</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group mr-2">
+                                    <select name="department" class="form-control form-control-sm" id="departmentFilter" onchange="this.form.submit()">
+                                        <option value="">All Departments</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.id }}" {% if request.GET.department == dept.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ dept.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="form-group mr-2">
+                                    <select name="division" class="form-control form-control-sm" id="divisionFilter" onchange="this.form.submit()">
+                                        <option value="">All Divisions</option>
+                                        {% for div in divisions %}
+                                        <option value="{{ div.id }}" {% if request.GET.division == div.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ div.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <a href="{% url 'add_employee_by_manager' %}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-plus"></i> Add Employee
+                                </a>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" id="employee-table-container">
+                            <table id="employeeTable" class="table table-bordered table-striped table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th style="width: 5%">SN</th>
+                                        <th>Full Name</th>
+                                        <th>Email</th>
+                                        <th class="d-none d-md-table-cell">Gender</th>
+                                        <th class="d-none d-lg-table-cell">Division</th>
+                                        <th class="d-none d-lg-table-cell">Department</th>
+                                        <th style="width: 80px">Avatar</th>
+                                        <th style="width: 100px">Assets</th>
+                                        <th style="width: 120px">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employee-body">
+                                    {% for employee in employees %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ employee.admin.first_name }} {{ employee.admin.last_name }}</strong>
+                                            </div>
+                                        </td>
+                                        <td class="text-truncate" style="max-width: 150px;">
+                                            <span class="font-monospace">{{ employee.admin.email }}</span>
+                                        </td>
+                                        <td class="d-none d-md-table-cell">{{ employee.admin.get_gender_display }}</td>
+                                        <td class="d-none d-lg-table-cell">{{ employee.division.name|default:"-" }}</td>
+                                        <td class="d-none d-lg-table-cell">{{ employee.department.name|default:"-" }}</td>
+                                        <td class="text-center">
+                                            {% if employee.admin.profile_pic %}
+                                            <img src="{{ employee.admin.profile_pic }}" alt="Profile Pic" 
+                                                class="img-circle img-size-32">
+                                            {% else %}
+                                            <div class="img-circle img-size-32 bg-light d-flex align-items-center justify-content-center">
+                                                <i class="fas fa-user text-muted"></i>
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-info manage-devices" 
+                                                    data-employee-id="{{ employee.admin.id }}"
+                                                    data-employee-name="{{ employee.admin.first_name }} {{ employee.admin.last_name }}"
+                                                    data-toggle="modal" 
+                                                    data-target="#deviceModal">
+                                                <i class="fas fa-laptop"></i> 
+                                                <span class="badge badge-light">{{ employee.asset_count }}</span>
+                                            </button>
+                                        </td>
+                                        <td class="text-nowrap">
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'edit_employee_by_manager' employee.id %}" class="btn btn-primary" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'delete_employee_by_manager' employee.id %}" 
+                                                   class="btn btn-danger" 
+                                                   title="Delete"
+                                                   onclick="return confirm('Are you sure you want to delete this employee?');">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted py-4">
+                                            <i class="fas fa-users fa-2x mb-2"></i><br>
+                                            No employees found matching your criteria
+                                            {% if request.GET.search or request.GET.gender or request.GET.department or request.GET.division %}
+                                            <div class="mt-2">
+                                                <a href="{% url 'manage_employee_by_manager' %}" class="btn btn-sm btn-outline-secondary">
+                                                    Clear filters
+                                                </a>
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+
+                            {% if is_paginated %}
+                            <nav aria-label="Employee pagination" id="employee-pagination">
+                                <ul class="pagination justify-content-center mt-3">
+                                    {% if employees.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link pagination-link" 
+                                           href="?page={{ employees.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.gender %}&gender={{ request.GET.gender }}{% endif %}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.division %}&division={{ request.GET.division }}{% endif %}" 
+                                           data-page="{{ employees.previous_page_number }}" 
+                                           data-section="employee"
+                                           aria-label="Previous">
+                                            <span aria-hidden="true">«</span>
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link" aria-hidden="true">«</span>
+                                    </li>
+                                    {% endif %}
+
+                                    {% for num in employees.paginator.page_range %}
+                                        {% if employees.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                        {% elif num > employees.number|add:'-3' and num < employees.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link pagination-link" 
+                                               href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.gender %}&gender={{ request.GET.gender }}{% endif %}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.division %}&division={{ request.GET.division }}{% endif %}" 
+                                               data-page="{{ num }}"
+                                               data-section="employee">{{ num }}</a>
+                                        </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if employees.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link pagination-link" 
+                                           href="?page={{ employees.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.gender %}&gender={{ request.GET.gender }}{% endif %}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.division %}&division={{ request.GET.division }}{% endif %}" 
+                                           data-page="{{ employees.next_page_number }}"
+                                           data-section="employee"
+                                           aria-label="Next">
+                                            <span aria-hidden="true">»</span>
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link" aria-hidden="true">»</span>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Device Allocation Modal -->
+<div class="modal fade" id="deviceModal" tabindex="-1" role="dialog" aria-labelledby="deviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="deviceModalLabel">Asset Management for <span id="modalEmployeeName"></span></h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Assigned Assets -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                                <h6 class="card-title mb-0">Currently Assigned Assets</h6>
+                                <span class="badge badge-light" id="assignedCount">0</span>
+                            </div>
+                            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                                <div class="p-2">
+                                    <button id="returnAllAssetsBtn" class="btn btn-sm btn-danger mb-2">
+                                        <i class="fas fa-undo mr-1"></i> Return All
+                                    </button>
+                                    <button id="returnSelectedAssetsBtn" class="btn btn-sm btn-warning mb-2">
+                                        <i class="fas fa-exchange-alt mr-1"></i> Return Selected
+                                    </button>
+                                </div>
+                                <div id="allocatedAssetsList" class="list-group list-group-flush">
+                                    <div class="text-center py-3">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Available Assets + Bundle -->
+                    <div class="col-md-6">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <h6 class="card-title mb-0">Available Assets</h6>
+                                <span class="badge badge-light" id="availableCount">0</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label for="assetLocation">Assignment Location:</label>
+                                    <select id="assetLocation" class="form-control mb-3">
+                                        {% for value, display in location_choices.items %}
+                                            <option value="{{ value }}">{{ display }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <!-- Category Filter -->
+                                <div class="form-group">
+                                    <label for="assetCategoryFilter">Filter by Category:</label>
+                                    <select id="assetCategoryFilter" class="form-control mb-2">
+                                        <option value="">All Categories</option>
+                                        <!-- Categories loaded via AJAX -->
+                                    </select>
+                                </div>
+
+                                <!-- Search within category -->
+                                <div class="form-group">
+                                    <div class="input-group mb-2">
+                                        <input type="text" id="assetSearchInput" class="form-control" placeholder="Search assets...">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-secondary" type="button" id="assetSearchBtn">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Available Assets Dropdown -->
+                                <div class="form-group">
+                                    <label for="availableAssets">Select Assets:</label>
+                                    <select id="availableAssets" class="form-control" multiple style="width: 100%;">
+                                        <!-- Assets loaded via AJAX -->
+                                    </select>
+                                </div>
+
+                                <!-- Bundle Button -->
+                                <button id="allocateBundleBtn" class="btn btn-warning btn-block mb-2">
+                                    <i class="fas fa-cubes mr-1"></i> Assign Bundle
+                                </button>
+
+                                <!-- Allocate Selected Button -->
+                                <button id="allocateAssetBtn" class="btn btn-success btn-block">
+                                    <i class="fas fa-plus-circle mr-1"></i> Assign Selected Assets
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Toast for Messages -->
+<div class="toast" id="messageToast" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+    <div class="toast-header">
+        <strong class="mr-auto">Notification</strong>
+        <button type="button" class="ml-2 mb-1 close" data-dismiss="toast">×</button>
+    </div>
+    <div class="toast-body" id="toastMessage"></div>
+</div>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+// Initialize toast
+$('.toast').toast({ delay: 3000 });
+
+function showToast(message, type = 'success') {
+    $('#toastMessage').text(message);
+    $('.toast').removeClass('bg-success bg-danger').addClass('bg-' + type);
+    $('.toast').toast('show');
+}
+
+// Helper function to get filter parameters
+function getFilterParams() {
+    const params = new URLSearchParams();
+    const search = $('#searchInput').val();
+    const gender = $('#genderFilter').val();
+    const department = $('#departmentFilter').val();
+    const division = $('#divisionFilter').val();
+    
+    if (search) params.set('search', search);
+    if (gender) params.set('gender', gender);
+    if (department) params.set('department', department);
+    if (division) params.set('division', division);
+    
+    return params.toString() ? `&${params.toString()}` : '';
+}
+
+// AJAX Pagination
+$(document).ready(function() {
+    $(document).on('click', '.pagination-link', function(e) {
+        e.preventDefault();
+        const page = $(this).data('page');
+        const url = `?page=${page}${getFilterParams()}`;
+        const containerId = '#employee-table-container';
+        const bodyId = '#employee-body';
+        const paginationId = '#employee-pagination';
+
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Update table body
+            const newBody = doc.querySelector(bodyId);
+            document.querySelector(bodyId).innerHTML = newBody.innerHTML;
+            
+            // Update pagination
+            const newPagination = doc.querySelector(paginationId);
+            const paginationContainer = document.querySelector(paginationId);
+            if (newPagination && paginationContainer) {
+                paginationContainer.innerHTML = newPagination.innerHTML;
+            } else if (paginationContainer) {
+                paginationContainer.innerHTML = '';
+            }
+            
+            // Re-attach event listeners
+            $('[title]').tooltip();
+            $('tr[data-href]').click(function(e) {
+                if (!$(e.target).is('a, button, input, i, .btn')) {
+                    window.location = $(this).attr('data-href');
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error loading page. Please try again.', 'danger');
+        });
+    });
+
+    // AJAX Search
+    let searchTimeout;
+    $('#searchInput').on('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const url = `?page=1${getFilterParams()}`;
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Update table body
+                document.querySelector('#employee-body').innerHTML = doc.querySelector('#employee-body').innerHTML;
+                
+                // Update pagination
+                const newPagination = doc.querySelector('#employee-pagination');
+                const paginationContainer = document.querySelector('#employee-pagination');
+                if (newPagination && paginationContainer) {
+                    paginationContainer.innerHTML = newPagination.innerHTML;
+                } else if (paginationContainer) {
+                    paginationContainer.innerHTML = '';
+                }
+                
+                // Re-attach event listeners
+                $('[title]').tooltip();
+                $('tr[data-href]').click(function(e) {
+                    if (!$(e.target).is('a, button, input, i, .btn')) {
+                        window.location = $(this).attr('data-href');
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error loading search results. Please try again.', 'danger');
+            });
+        }, 300); // 300ms debounce
+    });
+
+    // Initialize tooltips and row click handlers
+    $('[title]').tooltip();
+    
+    $('tr[data-href]').click(function(e) {
+        if (!$(e.target).is('a, button, input, i, .btn')) {
+            window.location = $(this).attr('data-href');
+        }
+    });
+
+    $('a[href*="delete_employee_by_manager"]').click(function(e) {
+        if (!confirm('Are you sure you want to delete this employee?')) {
+            e.preventDefault();
+        }
+    });
+});
+
+// Device modal handling
+$(document).on('show.bs.modal', '#deviceModal', function(event) {
+    var button = $(event.relatedTarget);
+    var employeeId = button.data('employee-id');
+    var employeeName = button.data('employee-name');
+    var modal = $(this);
+    
+    modal.find('#modalEmployeeName').text(employeeName);
+    modal.data('employee-id', employeeId);
+    
+    // Load assigned assets
+    loadAssignedAssets(employeeId);
+    
+    // Load available assets with no filter initially
+    loadAvailableAssets(employeeId);
+    
+    // Load asset categories
+    loadAssetCategories();
+});
+
+function loadAssetCategories() {
+    $.get('{% url "get_asset_categories" %}', function(response) {
+        var select = $('#assetCategoryFilter');
+        select.empty().append('<option value="">All Categories</option>');
+        if(response.success && response.categories && response.categories.length > 0) {
+            response.categories.forEach(function(category) {
+                select.append(new Option(category.name, category.id));
+            });
+        } else {
+            select.append(new Option("No categories available", ""));
+            select.prop('disabled', true);
+        }
+    }).fail(function() {
+        $('#assetCategoryFilter').html('<option>Error loading categories</option>');
+        showToast('Error loading asset categories', 'danger');
+    });
+}
+
+function loadAssignedAssets(employeeId) {
+    $.get('{% url "get_assigned_assets" %}', {employee_id: employeeId}, function(response) {
+        var html = '';
+        if(response.success && response.assets && response.assets.length > 0) {
+            $('#assignedCount').text(response.assets.length);
+            response.assets.forEach(function(asset) {
+                html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input asset-checkbox" 
+                               data-asset-id="${asset.id}"
+                               data-issuance-id="${asset.issuance_id}"
+                               id="asset_${asset.id}">
+                        <label class="form-check-label" for="asset_${asset.id}">
+                            <strong>${asset.asset_name}</strong><br>
+                            <small class="text-muted">${asset.asset_serial_number} (${asset.asset_category})</small>
+                        </label>
+                    </div>
+                    <button class="btn btn-sm btn-warning remove-asset" 
+                            data-asset-id="${asset.id}"
+                            data-issuance-id="${asset.issuance_id}">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </div>`;
+            });
+        } else {
+            html = '<div class="alert alert-info m-2">No assets assigned</div>';
+            $('#assignedCount').text('0');
+        }
+        $('#allocatedAssetsList').html(html);
+    }).fail(function() {
+        $('#allocatedAssetsList').html('<div class="alert alert-danger m-2">Error loading assets</div>');
+    });
+}
+
+function loadAvailableAssets(employeeId, categoryId = '', searchQuery = '') {
+    var select = $('#availableAssets');
+    var allocateBtn = $('#allocateAssetBtn');
+
+    // Clear previous options and reset state
+    select.empty().prop('disabled', false);
+    allocateBtn.prop('disabled', false);
+
+    $.get('{% url "get_available_assets" %}', {
+        category_id: categoryId,
+        search: searchQuery
+    }, function(response) {
+        if(response.success && response.assets && response.assets.length > 0) {
+            $('#availableCount').text(response.assets.length);
+            response.assets.forEach(function(asset) {
+                select.append(new Option(
+                    `${asset.asset_category}: ${asset.asset_name} (${asset.asset_serial_number})`, 
+                    asset.id
+                ));
+            });
+        } else {
+            select.append(new Option("No available assets found", ""));
+            select.prop('disabled', true);
+            allocateBtn.prop('disabled', true);
+            $('#availableCount').text('0');
+            showToast('No assets found for the current search', 'info');
+        }
+    }).fail(function() {
+        select.html('<option>Error loading assets</option>');
+        select.prop('disabled', true);
+        allocateBtn.prop('disabled', true);
+        $('#availableCount').text('0');
+        showToast('Error loading assets', 'danger');
+    });
+}
+
+// Category filter change
+$(document).on('change', '#assetCategoryFilter', function() {
+    var categoryId = $(this).val();
+    var employeeId = $('#deviceModal').data('employee-id');
+    var searchQuery = $('#assetSearchInput').val();
+    loadAvailableAssets(employeeId, categoryId, searchQuery);
+});
+
+// Asset search
+$(document).on('click', '#assetSearchBtn', function() {
+    var categoryId = $('#assetCategoryFilter').val();
+    var employeeId = $('#deviceModal').data('employee-id');
+    var searchQuery = $('#assetSearchInput').val();
+    loadAvailableAssets(employeeId, categoryId, searchQuery);
+});
+
+// Clear search input on double-click
+$(document).on('dblclick', '#assetSearchInput', function() {
+    $(this).val('');
+    var categoryId = $('#assetCategoryFilter').val();
+    var employeeId = $('#deviceModal').data('employee-id');
+    loadAvailableAssets(employeeId, categoryId, '');
+});
+
+// Assign bundle assets
+$(document).on('click', '#allocateBundleBtn', function() {
+    var modal = $('#deviceModal');
+    var employeeId = modal.data('employee-id');
+    var location = $('#assetLocation').val();
+
+    $.ajax({
+        url: '{% url "get_available_assets" %}',
+        method: 'GET',
+        success: function(response) {
+            if (response.success) {
+                var bundleAssets = response.bundle_assets || [];
+                
+                var expectedCategories = ['Laptop', 'Keyboard', 'Mouse', 'Cooling Pad', 'Monitor'];
+                var availableCategories = bundleAssets.map(asset => asset.asset_category.toLowerCase());
+                var missingCategories = expectedCategories.filter(category => !availableCategories.includes(category.toLowerCase()));
+
+                if (missingCategories.length > 0) {
+                    var missingItemsText = missingCategories.join(', ');
+                    showToast('Missing items in bundle: ' + missingItemsText, 'danger');
+                    return;
+                }
+
+                if (confirm('Are you sure you want to bulk assign the bundle assets?')) {
+                    var assetIds = bundleAssets.map(asset => asset.id);
+
+                    $.ajax({
+                        url: '{% url "assign_assets" %}',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            'employee_id': employeeId,
+                            'location': location,
+                            'asset_ids': assetIds,
+                            'csrfmiddlewaretoken': '{{ csrf_token }}'
+                        }),
+                        success: function(assignResponse) {
+                            if (assignResponse.success) {
+                                showToast(assignResponse.message, 'success');
+                                $('#deviceModal').modal('hide');
+                                setTimeout(() => window.location.reload(), 1000);
+                            } else {
+                                showToast(assignResponse.error, 'danger');
+                            }
+                        },
+                        error: function() {
+                            showToast('Server error while assigning bundle.', 'danger');
+                        }
+                    });
+                } else {
+                    showToast('Bulk assignment cancelled.', 'info');
+                }
+            } else {
+                showToast('Error fetching bundle assets.', 'danger');
+            }
+        },
+        error: function() {
+            showToast('Server error while fetching bundle assets.', 'danger');
+        }
+    });
+});
+
+// Assign assets
+$(document).on('click', '#allocateAssetBtn', function() {
+    var modal = $('#deviceModal');
+    var employeeId = modal.data('employee-id');
+    var assetIds = $('#availableAssets').val();
+    var location = $('#assetLocation').val();
+
+    if(!assetIds || assetIds.length === 0) {
+        showToast('Please select at least one asset', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: '{% url "assign_assets" %}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            'employee_id': employeeId,
+            'asset_ids': assetIds,
+            'location': location,
+            'csrfmiddlewaretoken': '{{ csrf_token }}'
+        }),
+        success: function(response) {
+            if(response.success) {
+                showToast('Assets assigned successfully', 'success');
+                $('#deviceModal').modal('hide');
+                window.location.reload();
+            } else {
+                showToast(response.error, 'danger');
+            }
+        },
+        error: function() {
+            showToast('Server error while assigning assets', 'danger');
+        }
+    });
+});
+
+// Return asset assignment (single)
+$(document).on('click', '.remove-asset', function() {
+    if(!confirm('Are you sure you want to return this asset?')) return;
+    
+    var issuanceId = $(this).data('issuance-id');
+    var assetId = $(this).data('asset-id');
+    
+    $.ajax({
+        url: '{% url "remove_asset_assignment" %}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            'issuance_id': issuanceId,
+            'asset_id': assetId,
+            'csrfmiddlewaretoken': '{{ csrf_token }}'
+        }),
+        success: function(response) {
+            if(response.success) {
+                showToast('Assignment returned successfully', 'success');
+                $('#deviceModal').modal('hide');
+                location.reload();
+            } else {
+                showToast(response.error, 'danger');
+            }
+        },
+        error: function() {
+            showToast('Server error while returning assignment', 'danger');
+        }
+    });
+});
+
+// Return selected assets
+$(document).on('click', '#returnSelectedAssetsBtn', function() {
+    var selectedAssets = [];
+    $('.asset-checkbox:checked').each(function() {
+        selectedAssets.push({
+            issuance_id: $(this).data('issuance-id'),
+            asset_id: $(this).data('asset-id')
+        });
+    });
+
+    if(selectedAssets.length === 0) {
+        showToast('Please select at least one asset to return', 'danger');
+        return;
+    }
+
+    if(!confirm(`Are you sure you want to return ${selectedAssets.length} selected assets?`)) return;
+    
+    $.ajax({
+        url: '{% url "remove_selected_asset_assignment" %}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            'assets': selectedAssets,
+            'csrfmiddlewaretoken': '{{ csrf_token }}'
+        }),
+        success: function(response) {
+            if(response.success) {
+                showToast('Selected assets returned successfully', 'success');
+                $('#deviceModal').modal('hide');
+                location.reload();
+            } else {
+                showToast(response.error, 'danger');
+            }
+        },
+        error: function() {
+            showToast('Server error while returning selected assets', 'danger');
+        }
+    });
+});
+
+// Return all assets
+$(document).on('click', '#returnAllAssetsBtn', function() {
+    var employeeId = $('#deviceModal').data('employee-id');
+    if(!confirm('Are you sure you want to return ALL assets assigned to this employee?')) return;
+    
+    $.ajax({
+        url: '{% url "remove_all_asset_assignment" %}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            'employee_id': employeeId,
+            'csrfmiddlewaretoken': '{{ csrf_token }}'
+        }),
+        success: function(response) {
+            if(response.success) {
+                showToast('All assets returned successfully', 'success');
+                $('#deviceModal').modal('hide');
+                location.reload();
+            } else {
+                showToast(response.error, 'danger');
+            }
+        },
+        error: function() {
+            showToast('Server error while returning assets', 'danger');
+        }
+    });
+});
+
+// Phone number input filter with message
+$(document).on('input', '#id_phone_number, #id_emergency_contact', function() {
+    const original = this.value;
+    const digitsOnly = original.replace(/\D/g, '');
+    const warningId = this.id + "_warning";
+
+    if (original !== digitsOnly) {
+        if ($("#" + warningId).length === 0) {
+            $("<span id='" + warningId + "' class='invalid d-block mt-1'>Only digits are allowed</span>").insertAfter(this);
+        }
+    } else {
+        $("#" + warningId).remove();
+    }
+
+    this.value = digitsOnly;
+});
+
+// Initialize Select2 for the assets dropdown
+$(document).ready(function() {
+    $('#availableAssets').select2({
+        placeholder: "Select assets to assign",
+        width: '100%'
+    });
+});
+</script>
+{% endblock custom_js %}

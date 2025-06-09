@@ -1,0 +1,668 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | {{ page_title }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* General Styles */
+        .required-asterisk {
+            color: #dc3545;
+            font-weight: bold;
+            margin-left: 3px;
+        }
+
+        .text-danger {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .alert {
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+            border-radius: 0.25rem;
+        }
+
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .alert-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        /* Profile Picture Styles */
+        .profile-pic-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+            margin: 0 auto 1.5rem;
+        }
+
+        .profile-pic {
+            width: 100%;
+            height: 100%;
+            border: 3px solid #f8f9fa;
+            border-radius: 50%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-pic:hover {
+            border-color: #3897f0;
+            transform: scale(1.03);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 1050;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+        }
+
+        .modal-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            max-height: 90vh;
+            margin: 2rem;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .modal-image-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 100%; /* 1:1 Aspect Ratio */
+            overflow: hidden;
+        }
+
+        .modal-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform: scale(0.98);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        .modal-overlay.show .modal-image {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .modal-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+            z-index: 10;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .username {
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-close {
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-size: 1.5rem;
+        }
+
+        .modal-close:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: rotate(90deg);
+        }
+
+        .modal-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+            z-index: 10;
+        }
+
+        .action-button {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin: 0 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+
+        .action-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            animation: spin 1s linear infinite;
+            z-index: 5;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Password Toggle Styles */
+        .password-field-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .password-field-container .form-control {
+            padding-right: 40px; /* Space for the eye icon */
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 1.1rem;
+            z-index: 2;
+        }
+
+        .password-toggle:hover {
+            color: #343a40;
+        }
+
+        /* Confirmation Popup Styles */
+        .confirmation-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1099;
+        }
+
+        .confirmation-overlay.show {
+            display: block;
+        }
+
+        .confirmation-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1100;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .confirmation-popup.show {
+            display: block;
+        }
+
+        .confirmation-message {
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .confirmation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .confirmation-btn {
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-ok {
+            background-color: #3897f0;
+            color: white;
+        }
+
+        .btn-ok:hover {
+            background-color: #2a7bc2;
+        }
+
+        .btn-cancel {
+            background-color: #e6f0fa;
+            color: #3897f0;
+        }
+
+        .btn-cancel:hover {
+            background-color: #d1e0f5;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .profile-pic-container {
+                width: 200px;
+                height: 200px;
+            }
+
+            .modal-container {
+                margin: 1rem;
+                max-height: 85vh;
+            }
+
+            .confirmation-popup {
+                padding: 1rem;
+                max-width: 300px;
+            }
+
+            .confirmation-btn {
+                padding: 0.4rem 1.2rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <section class="content">
+        <div class="container-fluid">
+            <form id="profile-form" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row">
+                    <!-- Profile Side -->
+                    <div class="col-md-4">
+                        <div class="text-center mt-4">
+                            <div class="profile-pic-container">
+                                {% if user_object.profile_pic %}
+                                    <img src="{{ user_object.profile_pic }}" class="profile-pic" id="profilePic" alt="Profile Picture">
+                                {% else %}
+                                    <img src="{% static 'dist/img/avatar-placeholder.jpeg' %}" class="profile-pic" id="profilePic" alt="Profile Picture">
+                                {% endif %}
+                            </div>
+                            <h3 class="mt-2">{{ user_object.get_full_name }}</h3>
+                        </div>
+
+                        <!-- Profile Picture Modal -->
+                        <div id="profileModal" class="modal-overlay">
+                            <div class="modal-container">
+                                <div class="modal-header">
+                                    <div class="user-info">
+                                        {% if user_object.profile_pic %}
+                                            <img src="{{ user_object.profile_pic }}" class="user-avatar" alt="User Avatar">
+                                        {% else %}
+                                            <img src="{% static 'dist/img/avatar-placeholder.jpeg' %}" class="user-avatar" alt="User Avatar">
+                                        {% endif %}
+                                        <span class="username">{{ user_object.get_full_name }}</span>
+                                    </div>
+                                    <button class="modal-close" aria-label="Close">×</button>
+                                </div>
+                                <div class="modal-image-wrapper">
+                                    <div class="spinner"></div>
+                                    <img class="modal-image" id="enlargedPhoto" alt="Enlarged Profile Picture">
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="action-button" title="Download" onclick="downloadImage()">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <button class="action-button" title="Share" onclick="shareImage()">
+                                        <i class="fas fa-share-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Info Section -->
+                        <div class="card mb-4 mt-4">
+                            <div class="card-header bg-light">
+                                <h5 class="card-title mb-0">Contact Info</h5>
+                            </div>
+                            <div class="card-body">
+                                {% for field in form %}
+                                    {% if field.name in "profile_pic email address" %}
+                                        <div class="form-group">
+                                            <label for="{{ field.id_for_label }}">
+                                                {{ field.label }}
+                                                {% if field.field.required %}
+                                                    <span class="required-asterisk">*</span>
+                                                {% endif %}
+                                            </label>
+                                            {{ field }}
+                                            {% if field.errors %}
+                                                <div class="text-danger">{{ field.errors|striptags }}</div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Information -->
+                    <div class="col-md-8 mt-4">
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="card-title mb-0">Account Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for field in form %}
+                                        {% if field.name not in "profile_pic email address" %}
+                                            <div class="col-md-6">
+                                                <div class="form-group {% if field.name == 'password' %}password-field-container{% endif %}">
+                                                    <label for="{{ field.id_for_label }}">
+                                                        {{ field.label }}
+                                                        {% if field.field.required %}
+                                                            <span class="required-asterisk">*</span>
+                                                        {% endif %}
+                                                    </label>
+                                                    {% if field.name == 'password' %}
+                                                        <div class="password-field-container">
+                                                            {{ field }}
+                                                            <i class="fas fa-eye password-toggle" id="passwordToggle" aria-label="Toggle password visibility"></i>
+                                                        </div>
+                                                    {% else %}
+                                                        {{ field }}
+                                                    {% endif %}
+                                                    {% if field.errors %}
+                                                        <div class="text-danger">{{ field.errors|striptags }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="card-footer">
+                            <button type="button" class="btn btn-primary btn-block" id="updateProfileBtn">
+                                Update Profile
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Confirmation Popup -->
+            <div id="confirmationOverlay" class="confirmation-overlay"></div>
+            <div id="confirmationPopup" class="confirmation-popup">
+                <div class="confirmation-message">
+                    Are you sure you want to update the profile?
+                </div>
+                <div class="confirmation-buttons">
+                    <button class="confirmation-btn btn-ok" id="confirmYes">OK</button>
+                    <button class="confirmation-btn btn-cancel" id="confirmNo">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Suppress popups
+        window.alert = function() {};
+        if (window.Swal) {
+            Swal.close();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Debug: Check for popup sources
+            console.log('Checking for popup sources...');
+            if (window.Swal) console.log('SweetAlert is present');
+            if (window.toastr) console.log('Toastr is present');
+            console.log('window.alert overridden:', window.alert.toString());
+
+            // DOM Elements
+            const profilePic = document.getElementById("profilePic");
+            const profileModal = document.getElementById("profileModal");
+            const enlargedPhoto = document.getElementById("enlargedPhoto");
+            const spinner = document.querySelector('.spinner');
+            const passwordToggle = document.getElementById('passwordToggle');
+            const passwordField = document.getElementById('id_password');
+            const updateProfileBtn = document.getElementById('updateProfileBtn');
+            const confirmationOverlay = document.getElementById('confirmationOverlay');
+            const confirmationPopup = document.getElementById('confirmationPopup');
+            const confirmYes = document.getElementById('confirmYes');
+            const confirmNo = document.getElementById('confirmNo');
+            const profileForm = document.getElementById('profile-form');
+
+            // Debug: Log DOM elements
+            console.log('Password toggle element:', passwordToggle);
+            console.log('Password field element:', passwordField);
+
+            // Password Toggle Functionality
+            if (passwordToggle && passwordField) {
+                console.log('Setting up password toggle event listener');
+                passwordToggle.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    console.log('Eye button clicked at:', new Date().toISOString());
+                    try {
+                        const currentType = passwordField.getAttribute('type');
+                        const newType = currentType === 'password' ? 'text' : 'password';
+                        passwordField.setAttribute('type', newType);
+                        console.log('Password field type changed from', currentType, 'to', newType);
+                        if (newType === 'text') {
+                            this.classList.remove('fa-eye');
+                            this.classList.add('fa-eye-slash');
+                        } else {
+                            this.classList.remove('fa-eye-slash');
+                            this.classList.add('fa-eye');
+                        }
+                        console.log('Eye icon classes after toggle:', this.classList.toString());
+                    } catch (error) {
+                        console.error('Error in password toggle:', error);
+                    }
+                });
+            } else {
+                console.error('Password toggle or field not found:', { passwordToggle, passwordField });
+            }
+
+            // Confirmation Popup Functionality
+            function showConfirmationPopup() {
+                confirmationOverlay.classList.add('show');
+                confirmationPopup.classList.add('show');
+                document.body.style.overflow = 'hidden';
+                // Ensure the popup is centered by adjusting its position
+                confirmationPopup.style.top = '50%';
+                confirmationPopup.style.left = '50%';
+                confirmationPopup.style.transform = 'translate(-50%, -50%)';
+            }
+
+            function hideConfirmationPopup() {
+                confirmationOverlay.classList.remove('show');
+                confirmationPopup.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+
+            updateProfileBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                showConfirmationPopup();
+            });
+
+            confirmYes.addEventListener('click', function() {
+                hideConfirmationPopup();
+                profileForm.submit();
+            });
+
+            confirmNo.addEventListener('click', function() {
+                hideConfirmationPopup();
+            });
+
+            confirmationOverlay.addEventListener('click', function(e) {
+                if (e.target === confirmationOverlay) {
+                    hideConfirmationPopup();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && confirmationPopup.classList.contains('show')) {
+                    hideConfirmationPopup();
+                }
+            });
+
+            // Modal Functions
+            function openModal(src) {
+                if (!src) return;
+                spinner.style.display = 'block';
+                enlargedPhoto.style.display = 'none';
+                enlargedPhoto.src = src;
+                profileModal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+                document.body.style.paddingRight = getScrollbarWidth() + 'px';
+            }
+
+            function closeModal() {
+                profileModal.classList.remove('show');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            }
+
+            function imageLoaded() {
+                spinner.style.display = 'none';
+                enlargedPhoto.style.display = 'block';
+            }
+
+            function downloadImage() {
+                if (!enlargedPhoto.src) return;
+                const link = document.createElement('a');
+                link.href = enlargedPhoto.src;
+                link.download = 'profile-picture-' + new Date().getTime() + '.jpg';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            function shareImage() {
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'Profile Picture',
+                        text: 'Check out this profile picture',
+                        url: enlargedPhoto.src
+                    }).catch(err => {
+                        console.error('Error sharing:', err);
+                    });
+                } else {
+                    prompt('Copy this link to share:', enlargedPhoto.src);
+                }
+            }
+
+            function getScrollbarWidth() {
+                return window.innerWidth - document.documentElement.clientWidth;
+            }
+
+            // Initialize Event Listeners
+            if (profilePic) {
+                profilePic.addEventListener('click', () => openModal(profilePic.src));
+            }
+            document.querySelector('.modal-close').addEventListener('click', closeModal);
+            profileModal.addEventListener('click', (e) => {
+                if (e.target === profileModal) {
+                    closeModal();
+                }
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && profileModal.classList.contains('show')) {
+                    closeModal();
+                }
+            });
+            enlargedPhoto.addEventListener('load', imageLoaded);
+            enlargedPhoto.addEventListener('error', () => {
+                spinner.style.display = 'none';
+                enlargedPhoto.src = "{% static 'dist/img/avatar-placeholder.jpeg' %}";
+                enlargedPhoto.style.display = 'block';
+            });
+        });
+    </script>
+</body>
+</html>

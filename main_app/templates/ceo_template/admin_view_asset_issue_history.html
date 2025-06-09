@@ -1,0 +1,409 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block page_title %}Asset Issue Maintenance History{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Summary Cards (Responsive Grid) -->
+        <div class="row">
+            <div class="col-12 col-sm-6 col-md-6 mb-3">
+                <div class="info-box bg-info h-100">
+                    <span class="info-box-icon"><i class="fas fa-bug"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total Resolved</span>
+                        <span class="info-box-number">{{ total_resolved_count }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-12 col-sm-6 col-md-6 mb-3">
+                <div class="info-box bg-warning h-100">
+                    <span class="info-box-icon"><i class="fas fa-exclamation-triangle"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Recurring Issues</span>
+                        <span class="info-box-number">{{ recurring_count }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <!-- Above the table -->
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div id="page-info" class="mr-3">
+                        Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+                    </div>
+                    {% if page_obj.paginator.count > 0 %}
+                    <div class="btn-group">
+                        <button id="deleteSelectedBtn" class="btn btn-sm btn-warning mr-2" disabled>
+                            <i class="fas fa-trash mr-1"></i> Delete Selected
+                        </button>
+                        <button id="deleteAllBtn" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash-alt mr-1"></i> Delete All
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                <!-- Search Form -->
+                <form method="get" class="form-inline" id="search-form">
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control" 
+                               placeholder="Search issues..." value="{{ search_query }}">
+                        <div class="input-group-append">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Responsive Table Container -->
+            <div class="card-body p-0">
+                <div class="table-responsive" id="issue-table-container">
+                    <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 5%">
+                                    <input type="checkbox" id="selectAll">
+                                </th>
+                                <th style="width: 5%">No</th>
+                                <th style="width: 15%">Asset</th>
+                                <th style="width: 12%">Issue Type</th>
+                                <th style="width: 15%">Reported</th>
+                                <th style="width: 15%">Resolved</th>
+                                <th style="width: 10%">Duration</th>
+                                <th style="width: 18%">Resolution</th>
+                                <th style="width: 5%">Recurring</th>
+                                <th style="width: 5%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="issue-table-body">
+                            {% for issue in page_obj %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="issue-checkbox" data-issue-id="{{ issue.id }}">
+                                </td>
+                                <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                                <td>
+                                    <a href="{% url 'asset_app:assets-detail' issue.asset.id %}">
+                                        {{ issue.asset.asset_name|default:"N/A" }}
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">{{ issue.asset.asset_serial_number }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge badge-pill bg-{{ issue.get_badge_color }}">
+                                        {{ issue.get_issue_type_display }}
+                                    </span>
+                                </td>
+                                <td>{{ issue.reported_date|date:"M d, Y" }}</td>
+                                <td>{{ issue.resolved_date|date:"M d, Y" }}</td>
+                                <td><small class="text-muted">{{ issue.time_taken|humanize_duration }}</small></td>
+                                <td class="text-truncate" style="max-width: 200px;" title="{{ issue.resolution_method|default:'-' }}">
+                                    {{ issue.resolution_method|truncatechars:20|default:"-" }}
+                                </td>
+                                <td class="text-center">
+                                    {% if issue.is_recurring %}
+                                        <span class="badge bg-success rounded-pill">✓</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary rounded-pill">✗</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'asset_app:assets-detail' issue.asset.id %}" class="btn btn-outline-primary" title="View Asset">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button class="btn btn-outline-info view-issue-details" data-issue-id="{{ issue.id }}" title="View Details">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center py-4">No resolved issues found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Pagination controls -->
+            {% if page_obj.paginator.num_pages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center mb-0" id="pagination">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="#" data-page="1" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="#" data-page="{{ page_obj.previous_page_number }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item"><a class="page-link" href="#" data-page="{{ num }}">{{ num }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="#" data-page="{{ page_obj.next_page_number }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="#" data-page="{{ page_obj.paginator.num_pages }}" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Bootstrap Toast for Messages -->
+<div class="toast" id="messageToast" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+    <div class="toast-header">
+        <strong class="mr-auto">Notification</strong>
+        <button type="button" class="ml-2 mb-1 close" data-dismiss="toast">&times;</button>
+    </div>
+    <div class="toast-body" id="toastMessage"></div>
+</div>
+
+<!-- Issue Details Modal -->
+<div class="modal fade" id="issueDetailsModal" tabindex="-1" role="dialog" aria-labelledby="issueDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="issueDetailsModalLabel">Issue Details</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="issueDetailsContent">
+                <!-- Content will be loaded via AJAX -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_js %}
+<script>
+$(document).ready(function() {
+    // Initialize toast
+    $('.toast').toast({ delay: 5000 });
+
+    function showToast(message, type = 'success') {
+        const toast = $('#messageToast');
+        $('#toastMessage').text(message);
+        toast.removeClass('bg-success bg-danger bg-warning bg-info');
+        toast.addClass('bg-' + type);
+        toast.toast('show');
+    }
+
+    // Handle search form submission via AJAX
+    $('#search-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const form = $(this);
+        const button = form.find('button[type="submit"]');
+        const originalText = button.html();
+        button.html('<i class="fas fa-spinner fa-spin"></i>').attr('disabled', true);
+        
+        $.ajax({
+            url: window.location.pathname,
+            type: 'GET',
+            data: form.serialize(),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                $('#issue-table-container').html($(response.html).find('#issue-table-container').html());
+                $('#pagination').html($(response.html).find('#pagination').html());
+                $('#page-info').html($(response.html).find('#page-info').html());
+                updateDeleteButtonState();
+            },
+            error: function(xhr) {
+                showToast('An error occurred while searching', 'danger');
+            },
+            complete: function() {
+                button.html(originalText).attr('disabled', false);
+            }
+        });
+    });
+
+    // Handle pagination clicks
+    $(document).on('click', '#pagination a.page-link', function(e) {
+        e.preventDefault();
+        const page = $(this).data('page');
+        const searchQuery = $('#search-form input[name="search"]').val();
+        
+        $.ajax({
+            url: window.location.pathname,
+            type: 'GET',
+            data: { 
+                page: page,
+                search: searchQuery 
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                $('#issue-table-container').html($(response.html).find('#issue-table-container').html());
+                $('#pagination').html($(response.html).find('#pagination').html());
+                $('#page-info').html($(response.html).find('#page-info').html());
+                updateDeleteButtonState();
+            },
+            error: function(xhr) {
+                showToast('An error occurred while loading the page', 'danger');
+            }
+        });
+    });
+
+    // Select all checkboxes
+    $('#selectAll').on('change', function() {
+        $('.issue-checkbox').prop('checked', this.checked);
+        updateDeleteButtonState();
+    });
+
+    // Individual checkbox change
+    $(document).on('change', '.issue-checkbox', function() {
+        const allChecked = $('.issue-checkbox:checked').length === $('.issue-checkbox').length;
+        $('#selectAll').prop('checked', allChecked);
+        updateDeleteButtonState();
+    });
+
+    // Update Delete Selected button state
+    function updateDeleteButtonState() {
+        const checkedCount = $('.issue-checkbox:checked').length;
+        $('#deleteSelectedBtn').prop('disabled', checkedCount === 0);
+    }
+
+    // Delete selected issues
+    $('#deleteSelectedBtn').on('click', function() {
+        const selectedIssues = $('.issue-checkbox:checked').map(function() {
+            return $(this).data('issue-id');
+        }).get();
+
+        if (selectedIssues.length === 0) {
+            showToast('Please select at least one issue to delete', 'warning');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to delete ${selectedIssues.length} selected issue(s)? This action cannot be undone.`)) {
+            return;
+        }
+
+        const btn = $(this);
+        const originalText = btn.html();
+        btn.html('<i class="fas fa-spinner fa-spin"></i>').attr('disabled', true);
+
+        $.ajax({
+            url: '{% url "delete_asset_history_issues" %}',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                issue_ids: selectedIssues,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            }),
+            success: function(response) {
+                if (response.success) {
+                    showToast(response.message, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast(response.error || 'Error deleting issues', 'danger');
+                }
+            },
+            error: function(xhr) {
+                showToast('Server error while deleting issues', 'danger');
+            },
+            complete: function() {
+                btn.html(originalText).attr('disabled', false);
+            }
+        });
+    });
+
+    // Delete all issues
+    $('#deleteAllBtn').on('click', function() {
+        if (!confirm('WARNING: Are you sure you want to delete ALL resolved issues? This action cannot be undone.')) {
+            return;
+        }
+
+        const btn = $(this);
+        const originalText = btn.html();
+        btn.html('<i class="fas fa-spinner fa-spin"></i>').attr('disabled', true);
+
+        $.ajax({
+            url: '{% url "delete_asset_history_issues" %}',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                delete_all: true,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            }),
+            success: function(response) {
+                if (response.success) {
+                    showToast(response.message, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast(response.error || 'Error deleting issues', 'danger');
+                }
+            },
+            error: function(xhr) {
+                showToast('Server error while deleting issues', 'danger');
+            },
+            complete: function() {
+                btn.html(originalText).attr('disabled', false);
+            }
+        });
+    });
+
+    // View issue details
+    $(document).on('click', '.view-issue-details', function() {
+        const issueId = $(this).data('issue-id');
+        
+        $.ajax({
+            url: `/asset-issues/${issueId}/details/`,
+            type: 'GET',
+            success: function(response) {
+                $('#issueDetailsContent').html(response);
+                $('#issueDetailsModal').modal('show');
+            },
+            error: function() {
+                showToast('Failed to load issue details', 'danger');
+            }
+        });
+    });
+
+    // Initialize tooltips
+    $('[title]').tooltip({
+        trigger: 'hover',
+        placement: 'top'
+    });
+});
+</script>
+{% endblock %}

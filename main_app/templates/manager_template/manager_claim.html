@@ -1,0 +1,52 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %} Unclaimed Devices {% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+
+        <!-- Claimable Devices -->
+        <div class="card card-dark mt-2">
+            <div class="card-header">
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Asset</th>
+                            <th>Serial No</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in assets %}
+                            {% if asset.asset.asset_assignee == None %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ asset.asset_name }}</td>
+                                <td>{{ asset.asset_serial_No }}</td>
+                                <td>
+                                    <form method="post" action="{% url 'asset_app:asset-claim' %}" style="display:inline-block;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="asset_id" value="{{ asset.id }}">
+                                        <button type="submit" class="btn btn-success btn-sm">Claim</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No unclaimed assets available for you.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock content %}

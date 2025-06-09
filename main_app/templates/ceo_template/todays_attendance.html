@@ -1,0 +1,117 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load tz %}
+
+{% block custom_css %}
+<style>
+.small-box {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.bg-gradient-success {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%) !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Count Card -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="small-box bg-gradient-success">
+                    <div class="inner">
+                        <h3>{{ total_clocked_in }}</h3>
+                        <p>Total Employees Clocked-In Today</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-gradient-info text-white">
+                        <h3 class="card-title">{{ page_title }} - {{ current_date }}</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Employee</th>
+                                        <th>Department</th>
+                                        <th>Manager</th>
+                                        <th>Clock In</th>
+                                        <th>Clock Out</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in page_obj %}
+                                    <tr>
+                                        <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                                        <td>{{ record.user.get_full_name }}</td>
+                                        <td>{{ record.user.employee.department.name }}</td>
+                                        <td>{{ record.user.employee.team_lead }}</td>
+                                        <td>
+                                            {% timezone "Asia/Kolkata" %}
+                                                {{ record.clock_in|time:"h:i A" }}
+                                            {% endtimezone %}
+                                        </td>
+                                        <td>
+                                            {% if record.clock_out %}
+                                                {% timezone "Asia/Kolkata" %}
+                                                    {{ record.clock_out|time:"h:i A" }}
+                                                {% endtimezone %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge 
+                                                {% if record.status == 'present' %}badge-success
+                                                {% elif record.status == 'late' %}badge-warning
+                                                {% else %}badge-secondary{% endif %}">
+                                                {{ record.status|title }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4 text-muted">
+                                            No attendance records found for today
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="card-footer">
+                        <nav aria-label="Attendance pagination">
+                            <ul class="pagination justify-content-center mb-0">
+                                <!-- Same pagination code as manager template -->
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block custom_js %}
+<!-- Same JavaScript as manager template -->
+{% endblock %}

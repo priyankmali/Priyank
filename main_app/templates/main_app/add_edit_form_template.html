@@ -1,0 +1,674 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | {{ page_title }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base Styles */
+        .required-asterisk {
+            color: #dc3545;
+            font-weight: bold;
+            margin-left: 3px;
+        }
+        
+        .text-danger {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        
+        .alert {
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+            border-radius: 0.25rem;
+        }
+
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .alert-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        /* Profile Picture Styles */
+        .profile-pic-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+            margin: 0 auto 1.5rem;
+        }
+        
+        .profile-pic {
+            width: 100%;
+            height: 100%;
+            border: 3px solid #f8f9fa;
+            border-radius: 50%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .profile-pic:hover {
+            border-color: #3897f0;
+            transform: scale(1.03);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 1050;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+            will-change: opacity;
+            overflow-y: auto;
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+        }
+        
+        .modal-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            max-height: 90vh;
+            margin: 2rem;
+            display: flex;
+            flex-direction: column;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        .modal-image-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 100%; /* 1:1 Aspect Ratio */
+            overflow: hidden;
+        }
+        
+        .modal-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform: scale(0.98);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
+        }
+        
+        .modal-overlay.show .modal-image {
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        /* Modal Header */
+        .modal-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+            z-index: 10;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .username {
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Modal Close Button */
+        .modal-close {
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-size: 1.5rem;
+        }
+        
+        .modal-close:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: rotate(90deg);
+        }
+        
+        /* Modal Footer */
+        .modal-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+            z-index: 10;
+        }
+        
+        .action-button {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin: 0 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 1.2rem;
+        }
+        
+        .action-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+        
+        /* Loading Spinner */
+        .spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top: 4for solid white;
+            animation: spin 1s linear infinite;
+            z-index: 5;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        /* Date Input Styling */
+        input[type="date"] {
+            position: relative;
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 1rem;
+            color: #495057;
+            background-color: #fff;
+            cursor: pointer;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+
+        input[type="date"]:hover {
+            border-color: #80bdff;
+        }
+
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #3897f0;
+            box-shadow: 0 0 5px rgba(56, 151 rins, 240, 0.3);
+        }
+
+        /* Ensure the calendar icon is visible and clickable */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 1;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: 5px;
+        }
+
+        /* Password Toggle Styles */
+        .password-field-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .password-field-container .form-control {
+            padding-right: 40px; /* Space for the eye icon */
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 1.1rem;
+            z-index: 2;
+        }
+
+        .password-toggle:hover {
+            color: #343a40;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .profile-pic-container {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .modal-container {
+                margin: 1rem;
+                max-height: 85vh;
+            }
+        }
+    </style>
+</head>
+<body>
+  
+
+    <section class="content">
+        <div class="container-fluid">
+            <form id="profile-form" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row">
+                    <!-- Profile Side -->
+                    <div class="col-md-4">
+                        <div class="text-center mt-4">
+                            <div class="profile-pic-container">
+                                {% if page_title == "View/Update Profile" %}
+                                    {% if user_object.profile_pic %}
+                                        <img src="{{ user_object.profile_pic }}" class="profile-pic" id="profilePic" alt="Profile Picture">
+                                    {% else %}
+                                        <img src="{% static 'dist/img/avatar-placeholder.jpeg' %}" class="profile-pic" id="profilePic" alt="Profile Picture">
+                                    {% endif %}
+                                {% elif page_title != "Add Employee" and page_title != 'Add Manager' %}
+                                    {% if user_object.admin.profile_pic %}
+                                        <img src="{{ user_object.admin.profile_pic }}" class="profile-pic" id="profilePic" alt="Profile Picture">
+                                    {% else %}
+                                        <img src="{% static 'dist/img/avatar-placeholder.jpeg' %}" class="profile-pic" id="profilePic" alt="Profile Picture">
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                            
+                            {% if page_title == "View/Update Profile" %}
+                                <h3 class="mt-2">{{ user_object.get_full_name }}</h3>
+                                {% if user_object.department %}
+                                    <p class="text-muted">{{ user_object.department }}</p>
+                                {% endif %}
+                            {% elif page_title != "Add Employee" and page_title != 'Add Manager' %}
+                                <h3 class="mt-2">{{ user_object.admin.get_full_name }}</h3>
+                                <p class="text-muted">{{ user_object.designation }}</p>
+                                {% if user_object.department %}
+                                    <p class="text-muted">{{ user_object.department }}</p>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Instagram/WhatsApp Style Modal -->
+                        <div id="profileModal" class="modal-overlay">
+                            <div class="modal-container">
+                                <div class="modal-header">
+                                    <div class="user-info">
+                                        {% if page_title == "View/Update Profile" %}
+                                            {% if user_object.profile_pic %}
+                                                <img src="{{ user_object.profile_pic }}" class="user-avatar" alt="User Avatar">
+                                            {% else %}
+                                                <img src="{% static 'dist/img/avatar-placeholder.jpeg' %}" class="user-avatar" alt="User Avatar">
+
+
+                                            {% endif %}
+                                            <span class="username">{{ user_object.get_full_name }}</span>
+                                        {% elif page_title != "Add Employee" and page_title != 'Add Manager' %}
+                                            {% if user_object.admin.profile_pic %}
+                                                <img src="{{ user_object.admin.profile_pic }}" class="user-avatar" alt="User Avatar">
+                                            {% else %}
+                                                <img src="{% static 'dist/img/avatar-placeholder.jpeg' %}" class="user-avatar" alt="User Avatar">
+                                            {% endif %}
+                                            <span class="username">{{ user_object.admin.get_full_name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <button class="modal-close" aria-label="Close">×</button>
+                                </div>
+                                
+                                <div class="modal-image-wrapper">
+                                    <div class="spinner"></div>
+                                    <img class="modal-image" id="enlargedPhoto" alt="Enlarged Profile Picture">
+                                </div>
+                                
+                                <div class="modal-footer">
+                                    <button class="action-button" title="Download" onclick="downloadImage()">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <button class="action-button" title="Share" onclick="shareImage()">
+                                        <i class="fas fa-share-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Info Section -->
+                        <div class="card mb-4 mt-4">
+                            <div class="card-header bg-light">
+                                <h5 class="card-title mb-0">Contact Info</h5>
+                            </div>
+                            <div class="card-body">
+                                {% for field in form %}
+                                    {% if field.name in "profile_pic email phone_number address" %}
+                                        <div class="form-group">
+                                            <label for="{{ field.id_for_label }}">
+                                                {{ field.label }}
+                                                {% if field.field.required %}
+                                                    <span class="required-asterisk">*</span>
+                                                {% endif %}
+                                            </label>
+                                            {% if field.name == 'email' %}
+                                                <input type="email" name="email" id="{{ field.id_for_label }}" class="form-control" value="{{ user_object.email }}" required>
+                                            {% else %}
+                                                {{ field }}
+                                            {% endif %}
+                                            {% if field.errors %}
+                                                <div class="text-danger">{{ field.errors|striptags }}</div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Information -->
+                    <div class="col-md-8 mt-4">
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="card-title mb-0">Account Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for field in form %}
+                                        {% if field.name not in "profile_pic email phone_number address" %}
+                                            <div class="col-md-6">
+                                                <div class="form-group {% if field.name == 'password' %}password-field-container{% endif %}">
+                                                    <label for="{{ field.id_for_label }}">
+                                                        {{ field.label }}
+                                                        {% if field.field.required %}
+                                                            <span class="required-asterisk">*</span>
+                                                        {% endif %}
+                                                    </label>
+                                                    {% if field.name == 'password' %}
+                                                        <div class="password-field-container">
+                                                            {{ field }}
+                                                            <i class="fas fa-eye password-toggle" id="passwordToggle" aria-label="Toggle password visibility"></i>
+                                                        </div>
+                                                    {% else %}
+                                                        {{ field }}
+                                                    {% endif %}
+                                                    {% if field.errors %}
+                                                        <div class="text-danger">{{ field.errors|striptags }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="card-footer">
+                            <button type="button" class="btn btn-primary btn-block" onclick="confirmSubmit()">
+                                {{ button_text|default:"Submit" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <script>
+        // Suppress popups
+        window.alert = function() {};
+        if (window.Swal) {
+            Swal.close();
+        }
+
+        // DOM Elements
+        const profilePic = document.getElementById("profilePic");
+        const profileModal = document.getElementById("profileModal");
+        const enlargedPhoto = document.getElementById("enlargedPhoto");
+        const spinner = document.querySelector('.spinner');
+        const dateOfJoiningInput = document.getElementById("id_date_of_joining");
+        const passwordToggle = document.getElementById('passwordToggle');
+        const passwordField = document.getElementById('id_password');
+
+        // Debug: Log DOM elements
+        console.log('Password toggle element:', passwordToggle);
+        console.log('Password field element:', passwordField);
+
+        // Open Modal Function
+        function openModal(src) {
+            if (!src) return;
+            
+            // Show loading spinner
+            spinner.style.display = 'block';
+            enlargedPhoto.style.display = 'none';
+            
+            // Set image source
+            enlargedPhoto.src = src;
+            
+            // Show modal with animation
+            profileModal.classList.add('show');
+            
+            // Disable body scrolling
+            document.body.style.overflow = 'hidden';
+            document.body.style.paddingRight = getScrollbarWidth() + 'px';
+        }
+        
+        // Close Modal Function
+        function closeModal() {
+            // Hide modal with animation
+            profileModal.classList.remove('show');
+            
+            // Enable body scrolling
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+        
+        // Image Loaded Handler
+        function imageLoaded() {
+            spinner.style.display = 'none';
+            enlargedPhoto.style.display = 'block';
+        }
+        
+        // Download Image Function
+        function downloadImage() {
+            if (!enlargedPhoto.src) return;
+            
+            const link = document.createElement('a');
+            link.href = enlargedPhoto.src;
+            link.download = 'profile-picture-' + new Date().getTime() + '.jpg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Share Image Function
+        function shareImage() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Profile Picture',
+                    text: 'Check out this profile picture',
+                    url: enlargedPhoto.src
+                }).catch(err => {
+                    console.error('Error sharing:', err);
+                });
+            } else {
+                // Fallback for browsers that don't support Web Share API
+                prompt('Copy this link to share:', enlargedPhoto.src);
+            }
+        }
+        
+        // Get Scrollbar Width (for modal open/close)
+        function getScrollbarWidth() {
+            return window.innerWidth - document.documentElement.clientWidth;
+        }
+
+        // Trigger Date Picker on Click
+        function triggerDatePicker() {
+            if (dateOfJoiningInput) {
+                dateOfJoiningInput.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    dateOfJoiningInput.showPicker(); // Programmatically open the date picker
+                });
+
+                // Ensure the date picker opens on focus as well
+                dateOfJoiningInput.addEventListener('focus', () => {
+                    dateOfJoiningInput.showPicker();
+                });
+            }
+        }
+
+        // Password Toggle Functionality
+        function setupPasswordToggle() {
+            if (passwordToggle && passwordField) {
+                console.log('Setting up password toggle event listener');
+                passwordToggle.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    console.log('Eye button clicked at:', new Date().toISOString());
+                    try {
+                        const currentType = passwordField.getAttribute('type');
+                        const newType = currentType === 'password' ? 'text' : 'password';
+                        passwordField.setAttribute('type', newType);
+                        console.log('Password field type changed from', currentType, 'to', newType);
+                        if (newType === 'text') {
+                            this.classList.remove('fa-eye');
+                            this.classList.add('fa-eye-slash');
+                        } else {
+                            this.classList.remove('fa-eye-slash');
+                            this.classList.add('fa-eye');
+                        }
+                        console.log('Eye icon classes after toggle:', this.classList.toString());
+                    } catch (error) {
+                        console.error('Error in password toggle:', error);
+                    }
+                });
+            } else {
+                console.error('Password toggle or field not found:', { passwordToggle, passwordField });
+            }
+        }
+        
+        // Event Listeners
+        function initEventListeners() {
+            // Profile picture click
+            if (profilePic) {
+                profilePic.addEventListener('click', () => openModal(profilePic.src));
+            }
+            
+            // Modal close button
+            document.querySelector('.modal-close').addEventListener('click', closeModal);
+            
+            // Close modal when clicking outside
+            profileModal.addEventListener('click', (e) => {
+                if (e.target === profileModal) {
+                    closeModal();
+                }
+            });
+            
+            // Close modal with ESC key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && profileModal.classList.contains('show')) {
+                    closeModal();
+                }
+            });
+            
+            // Image load event
+            enlargedPhoto.addEventListener('load', imageLoaded);
+            enlargedPhoto.addEventListener('error', () => {
+                spinner.style.display = 'none';
+                enlargedPhoto.src = "{% static 'dist/img/avatar-placeholder.jpeg' %}";
+                enlargedPhoto.style.display = 'block';
+            });
+
+            // Initialize date picker trigger
+            triggerDatePicker();
+
+            // Initialize password toggle
+            setupPasswordToggle();
+        }
+        
+        // Form Submission Confirmation
+        function confirmSubmit() {
+            let message = "Are you sure you want to submit this form?";
+            
+            {% if page_title == "Add Employee" %}
+                message = "Are you sure you want to add this employee?";
+            {% elif page_title == "Add Manager" %}
+                message = "Are you sure you want to add this manager?";
+            {% elif page_title == "Edit Employee" or page_title == "Edit Manager" or page_title == "View/Update Profile" %}
+                message = "Are you sure you want to update this profile?";
+            {% endif %}
+            
+            if (confirm(message)) {
+                document.getElementById("profile-form").submit();
+            }
+        }
+        
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Debug: Check for popup sources
+            console.log('Checking for popup sources...');
+            if (window.Swal) console.log('SweetAlert is present');
+            if (window.toastr) console.log('Toastr is present');
+            console.log('window.alert overridden:', window.alert.toString());
+
+            initEventListeners();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,530 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+<style>
+    /* Profile Picture Styles */
+    .profile-pic-container {
+        position: relative;
+        width: 250px;
+        height: 250px;
+        margin: 0 auto 1.5rem;
+    }
+    
+    .profile-pic {
+        width: 100%;
+        height: 100%;
+        border: 3px solid #f8f9fa;
+        border-radius: 50%;
+        object-fit: cover;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .profile-pic:hover {
+        border-color: #3897f0;
+        transform: scale(1.03);
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.95);
+        z-index: 1050;
+        opacity: 0;
+        transition: opacity 0.3s ease-out;
+        will-change: opacity;
+        overflow-y: auto;
+    }
+    
+    .modal-overlay.show {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        opacity: 1;
+    }
+    
+    .modal-container {
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+        height: auto;
+        max-height: 90vh;
+        margin: 2rem;
+        display: flex;
+        flex-direction: column;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #000;
+    }
+    
+    .modal-image-wrapper {
+        position: relative;
+        width: 100%;
+        padding-top: 100%; /* 1:1 Aspect Ratio */
+        overflow: hidden;
+    }
+    
+    .modal-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transform: scale(0.98);
+        opacity: 0;
+        transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
+    }
+    
+    .modal-overlay.show .modal-image {
+        transform: scale(1);
+        opacity: 1;
+    }
+    
+    /* Modal Header */
+    .modal-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+        z-index: 10;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+    }
+    
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin-right: 12px;
+        object-fit: cover;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .username {
+        color: white;
+        font-weight: 600;
+        font-size: 1rem;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Modal Close Button */
+    .modal-close {
+        color: white;
+        background: rgba(0, 0, 0, 0.5);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        font-size: 1.5rem;
+    }
+    
+    .modal-close:hover {
+        background: rgba(0, 0, 0, 0.7);
+        transform: rotate(90deg);
+    }
+    
+    /* Modal Footer */
+    .modal-footer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 1rem;
+        display: flex;
+        justify-content: center;
+        background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+        z-index: 10;
+    }
+    
+    .action-button {
+        color: white;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin: 0 0.5rem;
+        transition: all 0.2s ease;
+        font-size: 1.2rem;
+    }
+    
+    .action-button:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+    }
+    
+    /* Loading Spinner */
+    .spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        border-top: 4px solid white;
+        animation: spin 1s linear infinite;
+        z-index: 5;
+        display: none;
+    }
+    
+    @keyframes spin {
+        0% { transform: translate(-50%, -50%) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .profile-pic-container {
+            width: 200px;
+            height: 200px;
+        }
+        
+        .modal-container {
+            margin: 1rem;
+            max-height: 85vh;
+        }
+    }
+</style>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- general form elements -->
+                <div class="card card-primary">
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Employee Photo Column -->
+                            <div class="col-md-4">
+                                <div class="text-center mb-4">
+                                    <div class="profile-pic-container">
+                                        {% static '/dist/img/avatar-placeholder.jpeg' as avatar_placeholder %}
+                                        <img src="{{ employee.admin.profile_pic|default:avatar_placeholder }}" 
+                                             class="profile-pic" 
+                                             id="profilePic"
+                                             alt="Profile Image">
+                                    </div>
+                                    <h3 class="mt-3">{{ employee.admin.get_full_name }}</h3>
+                                    <h5 class="text-muted">{{ employee.designation }}</h5>
+                                    <span class="badge bg-{{ employee.get_department_color }} mt-2">
+                                        {{ employee.department }}
+                                    </span>
+                                </div>
+                                
+                                <!-- Instagram/WhatsApp Style Modal -->
+                                <div id="profileModal" class="modal-overlay">
+                                    <div class="modal-container">
+                                        <div class="modal-header">
+                                            <div class="user-info">
+                                                <img src="{{ employee.admin.profile_pic|default:avatar_placeholder }}" 
+                                                     class="user-avatar" 
+                                                     alt="User Avatar">
+                                                <span class="username">{{ employee.admin.get_full_name }}</span>
+                                            </div>
+                                            <button class="modal-close" aria-label="Close">&times;</button>
+                                        </div>
+                                        
+                                        <div class="modal-image-wrapper">
+                                            <div class="spinner"></div>
+                                            <img class="modal-image" id="enlargedPhoto" alt="Enlarged Profile Picture">
+                                        </div>
+                                        
+                                        <div class="modal-footer">
+                                            <button class="action-button" title="Download" onclick="downloadImage()">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button class="action-button" title="Share" onclick="shareImage()">
+                                                <i class="fas fa-share-alt"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Contact Information -->
+                                <div class="card mb-4">
+                                    <div class="card-header bg-light">
+                                        <h5 class="card-title mb-0">Contact Information</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-unstyled">
+                                            <li class="mb-2">
+                                                <i class="fas fa-envelope mr-2"></i>
+                                                <strong>Email:</strong> {{ employee.admin.email }}
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-phone mr-2"></i>
+                                                <strong>Phone:</strong> {{ employee.phone_number }}
+                                            </li>
+                                            <li class="mb-2">
+                                                <i class="fas fa-map-marker-alt mr-2"></i>
+                                                <strong>Address:</strong> {{ employee.admin.address }}
+                                            </li>
+                                            <li class="mb-2">
+    <i class="fas fa-calendar-alt mr-2"></i>
+    <strong>Join Date:</strong> {{ employee.date_of_joining|date:"F d, Y" }}
+</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Employee Details Column -->
+                            <div class="col-md-8">
+                                <!-- Professional Information -->
+                                <div class="card mb-4">
+                                    <div class="card-header bg-light">
+                                        <h5 class="card-title mb-0">Professional Information</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <ul class="list-unstyled">
+                                                    <li class="mb-2">
+                                                        <strong>Employee ID:</strong> {{ employee.employee_id }}
+                                                    </li>
+                                                    <li class="mb-2">
+                                                        <strong>Department:</strong> {{ employee.department }}
+                                                    </li>
+                                                    <li class="mb-2">
+                                                        <strong>Designation:</strong> {{ employee.designation }}
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <ul class="list-unstyled">
+                                                    <li class="mb-2">
+                                                        <strong>Team Lead:</strong> {{ employee.team_lead|default:"None" }}
+                                                    </li>
+                                                    <li class="mb-2">
+                                                        <strong>Division:</strong> {{ employee.division }}
+                                                    </li>
+                                                    <li class="mb-2">
+                                                        <strong>Gender:</strong> 
+                                                        <span class="badge bg-{{ employee.get_status_color }}">
+                                                            {{ employee.admin.gender }}
+                                                        </span>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card mb-4">
+                                    <div class="card-header bg-light">
+                                        <h5 class="card-title mb-0">Emergency Contact</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Name:</strong> {{ employee.emergency_contact.name|default:"Not provided" }}</p>
+                                                <p><strong>Relationship:</strong> {{ employee.emergency_contact.relationship|default:"Not provided" }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Phone:</strong> {{ employee.emergency_contact.phone|default:"Not provided" }}</p>
+                                                <p><strong>Address:</strong> {{ employee.emergency_contact.address|default:"Not provided" }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Documents (if any) -->
+                                {% if employee.documents.all %}
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h5 class="card-title mb-0">Documents</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Document</th>
+                                                        <th>Type</th>
+                                                        <th>Upload Date</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for doc in employee.documents.all %}
+                                                    <tr>
+                                                        <td>{{ doc.name }}</td>
+                                                        <td>{{ doc.get_document_type_display }}</td>
+                                                        <td>{{ doc.upload_date|date:"M d, Y" }}</td>
+                                                        <td>
+                                                            <a href="{{ doc.file.url }}" class="btn btn-sm btn-primary" download>
+                                                                <i class="fas fa-download"></i> Download
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+    // DOM Elements
+    const profilePic = document.getElementById("profilePic");
+    const profileModal = document.getElementById("profileModal");
+    const enlargedPhoto = document.getElementById("enlargedPhoto");
+    const spinner = document.querySelector('.spinner');
+    
+    // Open Modal Function
+    function openModal(src) {
+        if (!src) return;
+        
+        // Show loading spinner
+        spinner.style.display = 'block';
+        enlargedPhoto.style.display = 'none';
+        
+        // Set image source
+        enlargedPhoto.src = src;
+        
+        // Show modal with animation
+        profileModal.classList.add('show');
+        
+        // Disable body scrolling
+        document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = getScrollbarWidth() + 'px';
+    }
+    
+    // Close Modal Function
+    function closeModal() {
+        // Hide modal with animation
+        profileModal.classList.remove('show');
+        
+        // Enable body scrolling
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }
+    
+    // Image Loaded Handler
+    function imageLoaded() {
+        spinner.style.display = 'none';
+        enlargedPhoto.style.display = 'block';
+    }
+    
+    // Download Image Function
+    function downloadImage() {
+        if (!enlargedPhoto.src) return;
+        
+        const link = document.createElement('a');
+        link.href = enlargedPhoto.src;
+        link.download = 'profile-picture-' + new Date().getTime() + '.jpg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    // Share Image Function
+    function shareImage() {
+        if (navigator.share) {
+            navigator.share({
+                title: 'Profile Picture',
+                text: 'Check out this profile picture',
+                url: enlargedPhoto.src
+            }).catch(err => {
+                console.error('Error sharing:', err);
+                alert('Sharing failed. Please try again.');
+            });
+        } else {
+            // Fallback for browsers that don't support Web Share API
+            prompt('Copy this link to share:', enlargedPhoto.src);
+        }
+    }
+    
+    // Get Scrollbar Width (for modal open/close)
+    function getScrollbarWidth() {
+        return window.innerWidth - document.documentElement.clientWidth;
+    }
+    
+    // Event Listeners
+    function initEventListeners() {
+        // Profile picture click
+        if (profilePic) {
+            profilePic.addEventListener('click', () => openModal(profilePic.src));
+        }
+        
+        // Modal close button
+        document.querySelector('.modal-close').addEventListener('click', closeModal);
+        
+        // Close modal when clicking outside
+        profileModal.addEventListener('click', (e) => {
+            if (e.target === profileModal) {
+                closeModal();
+            }
+        });
+        
+        // Close modal with ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && profileModal.classList.contains('show')) {
+                closeModal();
+            }
+        });
+        
+        // Image load event
+        enlargedPhoto.addEventListener('load', imageLoaded);
+        enlargedPhoto.addEventListener('error', () => {
+            spinner.style.display = 'none';
+            enlargedPhoto.src = "{% static 'dist/img/avatar-placeholder.jpeg' %}";
+            enlargedPhoto.style.display = 'block';
+        });
+    }
+    
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        initEventListeners();
+        
+        // Password change notification
+        var ifNotfied = false;
+        $("#id_password").on("change", function(){
+            if (!ifNotfied){
+                ifNotfied = true;
+                alert("After a successful profile update:\n\nYour session would be terminated\nYou would be required to login again")
+            }
+        });
+    });
+</script>
+{% endblock custom_js %}

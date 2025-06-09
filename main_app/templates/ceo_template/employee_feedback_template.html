@@ -1,0 +1,506 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card card-primary">
+                    <div class="card-header d-flex flex-column flex-md-row align-items-center">
+                        <h3 class="card-title mb-2 mb-md-0">{{ page_title }}</h3>
+                        <div class="ml-md-auto d-flex flex-wrap justify-content-end">
+                            <button class="btn btn-sm bg-warning text-dark mr-2 mb-2 mb-md-0" id="delete-selected" disabled>
+                                <i class="fas fa-trash-alt"></i> <span class="d-none d-md-inline">Delete</span> Selected (<span id="selected-count">0</span>)
+                            </button>
+                            <button class="btn btn-danger btn-sm mb-2 mb-md-0" id="delete-all">
+                                <i class="fas fa-trash"></i> <span class="d-none d-md-inline">Delete</span> All
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card-body p-0">
+                        <div class="table-responsive" id="feedback-table-container">
+                            <table class="table table-bordered table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th class="text-center"><input type="checkbox" id="select-all"></th>
+                                        <th>SN</th>
+                                        <th>Employee</th>
+                                        <th>Message</th>
+                                        <th>Sent On</th>
+                                        <th>Replied On</th>
+                                        <th>Reply</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for feedback in feedbacks %}
+                                    <tr id="feedback-{{ feedback.id }}">
+                                        <td class="text-center"><input type="checkbox" class="feedback-checkbox" value="{{ feedback.id }}"></td>
+                                        <td>{{ forloop.counter0|add:feedbacks.start_index }}</td>
+                                        <td>{{ feedback.employee }}</td>
+                                        <td>{{ feedback.feedback }}</td>
+                                        {% if feedback.reply == "" %}
+                                            <td data-title="Sent On">{{ feedback.created_at|date:"M d, Y H:i" }}</td>
+                                            <td data-title="Status"><span class='badge badge-warning'>Pending</span></td>
+                                            <td data-title="Actions">
+                                                <button data-toggle="modal" 
+                                                        data-target="#reply_modal" 
+                                                        value="{{ feedback.id }}" 
+                                                        class="btn btn-primary btn-sm reply_open_modal">
+                                                    <i class="fas fa-reply"></i> <span class="d-none d-md-inline">Reply</span>
+                                                </button>
+                                                {% if feedback.id in unread_ids %}
+                                                    <i class="fas fa-circle text-danger" 
+                                                       title="Unread" 
+                                                       style="font-size: 8px; margin-left: 5px;"></i>
+                                                {% endif %}
+                                            </td>
+                                        {% else %}
+                                            <td data-title="Sent On">{{ feedback.created_at|date:"M d, Y H:i" }}</td>
+                                            <td data-title="Replied On">{{ feedback.updated_at|date:"M d, Y H:i" }}</td>
+                                            <td data-title="Reply">{{ feedback.reply }}</td>
+                                        {% endif %}
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center">No feedback messages found.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+
+                            {% if feedbacks.has_other_pages %}
+                            <div class="mt-3 px-3">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination justify-content-center flex-wrap">
+                                        {% if feedbacks.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link pagination-link" 
+                                                   href="?page={{ feedbacks.previous_page_number }}" 
+                                                   data-page="{{ feedbacks.previous_page_number }}">«</a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled">
+                                                <span class="page-link">«</span>
+                                            </li>
+                                        {% endif %}
+
+                                        {% for num in feedbacks.paginator.page_range %}
+                                            {% if feedbacks.number == num %}
+                                                <li class="page-item active">
+                                                    <span class="page-link">{{ num }}</span>
+                                                </li>
+                                            {% elif num > feedbacks.number|add:-3 and num < feedbacks.number|add:3 %}
+                                                <li class="page-item">
+                                                    <a class="page-link pagination-link" 
+                                                       href="?page={{ num }}" 
+                                                       data-page="{{ num }}">{{ num }}</a>
+                                                </li>
+                                            {% endif %}
+                                        {% endfor %}
+
+                                        {% if feedbacks.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link pagination-link" 
+                                                   href="?page={{ feedbacks.next_page_number }}" 
+                                                   data-page="{{ feedbacks.next_page_number }}">»</a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled">
+                                                <span class="page-link">»</span>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Reply Modal -->
+<div class="modal fade" id="reply_modal" tabindex="-1" role="dialog" aria-labelledby="replyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="replyModalLabel">Reply to Feedback</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="id">
+                <p>Reply to <span id="reply_name"></span></p>
+                <textarea name="reply_message" id="reply_message" cols="30" rows="5" class="form-control"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="reply_btn" class="btn btn-success">
+                    <i class="fas fa-reply"></i> Send Reply
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Selected Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the selected feedback messages?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> This action cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">
+                    <i class="fas fa-trash-alt"></i> Delete Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete All Confirmation Modal -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1" role="dialog" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title text-white" id="deleteAllModalLabel">Delete All Feedback</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete ALL feedback messages?</p>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> This will permanently delete ALL records and cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteAll">
+                    <i class="fas fa-trash"></i> Delete All
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block custom_css %}
+<style>
+    /* Responsive table styles */
+    @media (max-width: 767.98px) {
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+    
+    /* Button spacing adjustments */
+    .card-header .btn {
+        margin-bottom: 0.25rem;
+    }
+</style>
+{% endblock custom_css %}
+
+{% block custom_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
+<script>
+$(document).ready(function() {
+    // Toastr configuration
+    toastr.options = {
+        "closeButton": true,
+        "progressBar": true,
+        "positionClass": "toast-top-right",
+        "timeOut": "3000"
+    };
+
+    // Initialize all modal close buttons
+    $('.modal [data-dismiss="modal"]').on('click', function() {
+        $(this).closest('.modal').modal('hide');
+    });
+
+    // Update Delete Selected button
+    function updateDeleteSelectedButton() {
+        var checkedCount = $('.feedback-checkbox:checked').length;
+        $('#delete-selected').prop('disabled', checkedCount === 0);
+        $('#selected-count').text(checkedCount);
+    }
+
+    // Select all checkbox
+    $('#select-all').change(function() {
+        $('.feedback-checkbox').prop('checked', this.checked);
+        updateDeleteSelectedButton();
+    });
+
+    // Individual checkbox changes
+    $(document).on('change', '.feedback-checkbox', function() {
+        updateDeleteSelectedButton();
+        $('#select-all').prop('checked', 
+            $('.feedback-checkbox:checked').length === $('.feedback-checkbox').length);
+    });
+
+    // Delete Selected button
+    $('#delete-selected').click(function() {
+        var selectedIds = $('.feedback-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        if (selectedIds.length > 0) {
+            $('#deleteModal').modal('show');
+        } else {
+            toastr.warning('Please select at least one feedback to delete.');
+        }
+    });
+
+    // Function to remove deleted rows without reloading
+    function removeDeletedRows(ids) {
+        ids.forEach(function(id) {
+            $('#feedback-' + id).remove();
+        });
+        updateTableAfterDeletion();
+    }
+
+    // Function to update table state after deletion
+    function updateTableAfterDeletion() {
+        // Update row numbering
+        $('tbody tr').each(function(index) {
+            $(this).find('td:eq(1)').text(index + 1);
+        });
+        
+        // Update select all checkbox
+        var totalCheckboxes = $('.feedback-checkbox').length;
+        var checkedCheckboxes = $('.feedback-checkbox:checked').length;
+        $('#select-all').prop('checked', totalCheckboxes > 0 && checkedCheckboxes === totalCheckboxes);
+        
+        // Update delete button state
+        updateDeleteSelectedButton();
+        
+        // Show message if no records left
+        if (totalCheckboxes === 0) {
+            $('tbody').html('<tr><td colspan="7" class="text-center">No feedback messages found.</td></tr>');
+        }
+    }
+
+    // Confirm Delete Selected
+    $('#confirmDelete').click(function() {
+        var $modal = $('#deleteModal');
+        var selectedIds = $('.feedback-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        $.ajax({
+            url: "{% url 'employee_feedback_message' %}",
+            type: 'POST',
+            data: {
+                'ids[]': selectedIds,
+                '_method': 'DELETE',
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            beforeSend: function() {
+                $modal.find('button').prop('disabled', true);
+                $modal.modal('hide');
+            },
+            success: function(response) {
+                if (response.success) {
+                    removeDeletedRows(selectedIds);
+                    toastr.success(response.message);
+                } else {
+                    toastr.error(response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                toastr.error('Error deleting feedback: ' + error);
+            },
+            complete: function() {
+                $modal.find('button').prop('disabled', false);
+            }
+        });
+    });
+
+    // Delete All button
+    $('#delete-all').click(function() {
+        if ($('.feedback-checkbox').length > 0) {
+            $('#deleteAllModal').modal('show');
+        } else {
+            toastr.warning('No feedback messages to delete.');
+        }
+    });
+
+    // Confirm Delete All
+    $('#confirmDeleteAll').click(function() {
+        var $modal = $('#deleteAllModal');
+        
+        $.ajax({
+            url: "{% url 'employee_feedback_message' %}",
+            type: 'POST',
+            data: {
+                'action': 'delete_all',
+                '_method': 'DELETE',
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            beforeSend: function() {
+                $modal.find('button').prop('disabled', true);
+                $modal.modal('hide');
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('tbody').html('<tr><td colspan="7" class="text-center">No feedback messages found.</td></tr>');
+                    toastr.success(response.message);
+                    $('.feedback-checkbox').prop('checked', false);
+                    $('#select-all').prop('checked', false);
+                    updateDeleteSelectedButton();
+                } else {
+                    toastr.error(response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                toastr.error('Error deleting all feedback: ' + error);
+            },
+            complete: function() {
+                $modal.find('button').prop('disabled', false);
+            }
+        });
+    });
+
+    // Reply Modal
+    $(document).on('click', '.reply_open_modal', function() {
+        var id = $(this).val();
+        var name = $(this).parents('tr').children('td:eq(2)').text();
+        $('#reply_name').text(name);
+        $('#id').val(id);
+        $('#reply_message').val('');
+        $('#reply_modal').modal('show'); // Ensure modal is shown
+    });
+
+    // Send Reply
+    $(document).on('click', '#reply_btn', function() {
+        var $modal = $('#reply_modal');
+        var id = $('#id').val();
+        var reply = $('#reply_message').val().trim();
+        
+        if (!reply) {
+            toastr.warning('Please enter a reply message.');
+            return;
+        }
+
+        console.log('Sending reply for feedback ID:', id); // Debug log
+
+        $.ajax({
+            url: "{% url 'employee_feedback_message' %}",
+            type: 'POST',
+            data: {
+                id: id,
+                reply: reply,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            beforeSend: function() {
+                console.log('Disabling buttons and sending AJAX request...');
+                $modal.find('button').prop('disabled', true);
+            },
+            success: function(response) {
+                console.log('Response received:', response); // Debug log
+                
+                if (response.success) {
+                    toastr.success(response.message);
+                    
+                    // Update the table row
+                    var $row = $('#feedback-' + id);
+                    if ($row.length) {
+                        $row.find('td:eq(4)').text(response.updated_at);
+                        $row.find('td:eq(5)').html(response.reply);
+                        $row.find('td:eq(6)').html(response.reply);
+                        $row.find('.fa-circle.text-danger').remove();
+                    } else {
+                        console.warn('Row not found for feedback ID:', id);
+                    }
+
+                    // Close the modal with a slight delay for reliability
+                    setTimeout(function() {
+                        console.log('Closing modal...');
+                        $modal.modal('hide');
+                        $modal.removeClass('show');
+                        $modal.css('display', 'none');
+                        $('.modal-backdrop').remove();
+                        $('body').removeClass('modal-open');
+                        
+                        // Reset modal state
+                        $modal.removeData('bs.modal');
+                        $('#reply_message').val('');
+                        $('#id').val('');
+                        $('#reply_name').text('');
+                    }, 100); // 100ms delay to ensure Toastr displays first
+                } else {
+                    toastr.error(response.message || 'Failed to send reply');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error:', status, error);
+                toastr.error('Error sending reply: ' + error);
+            },
+            complete: function() {
+                console.log('Re-enabling buttons...');
+                $modal.find('button').prop('disabled', false);
+            }
+        });
+    });
+
+    // Pagination
+    $(document).on('click', '.pagination-link', function(e) {
+        e.preventDefault();
+        var page = $(this).data('page');
+
+        $.ajax({
+            url: "{% url 'employee_feedback_message' %}",
+            type: 'GET',
+            data: { page: page },
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(response) {
+                if (response.success) {
+                    var $temp = $('<div>').html(response.html);
+                    var $newContent = $temp.find('#feedback-table-container').html();
+                    $('#feedback-table-container').html($newContent);
+                    window.history.pushState({}, '', '?page=' + page);
+                    $('#delete-selected').prop('disabled', true);
+                    $('#selected-count').text(0);
+                } else {
+                    toastr.error("Failed to load page: " + (response.message || "Unknown error"));
+                }
+            },
+            error: function(xhr, status, error) {
+                toastr.error('Error loading page. Please try again.');
+            }
+        });
+    });
+
+    // Handle browser back/forward
+    window.onpopstate = function() {
+        window.location.reload();
+    };
+});
+</script>
+{% endblock custom_js %}

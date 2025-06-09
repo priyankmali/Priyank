@@ -1,0 +1,643 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block custom_css %}
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<style>
+    .update-container { 
+        max-width: 800px; 
+        margin: 0 auto; 
+        padding: 20px;
+    }
+    .section-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+        margin-bottom: 25px;
+    }
+    .section-title {
+        color: #2c3e50;
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .update-item {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        align-items: center;
+    }
+    .update-input {
+        flex: 1;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+    }
+    .update-input:focus {
+        border-color: #4a90e2;
+        outline: none;
+    }
+    .time-spent-container {
+        position: relative;
+        width: 150px;
+    }
+    .time-spent {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    .time-unit-dropdown { 
+        position: absolute; 
+        background: white; 
+        border: 1px solid #ddd; 
+        border-radius: 4px; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        z-index: 1000; 
+        display: none; 
+        width: 100%;
+    }
+    .time-unit-dropdown div { 
+        padding: 8px 15px; 
+        cursor: pointer; 
+        font-size: 14px; 
+        transition: background-color 0.2s;
+    }
+    .time-unit-dropdown div:hover { 
+        background-color: #f0f4ff; 
+    }
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .edit-btn, .delete-btn {
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s;
+        background: none;
+    }
+    .edit-btn i {
+        color: #4a90e2;
+    }
+    .edit-btn:hover i {
+        color: #3a7bc8;
+    }
+    .delete-btn i {
+        color: #e74c3c;
+    }
+    .delete-btn:hover i {
+        color: #c0392b;
+    }
+    .justification-box { 
+        margin-top: 20px; 
+        padding: 20px; 
+        background: #fff8e1; 
+        border-radius: 8px;
+        border-left: 4px solid #ffc107;
+        display: none;
+    }
+    .time-summary { 
+        margin-top: 20px;
+        padding: 15px;
+        font-weight: 600;
+        font-size: 15px;
+        border-radius: 6px;
+        background: #e6f0fa;
+        border-left: 4px solid #4a90e2;
+    }
+    .time-summary.error { 
+        background: #ffebee;
+        color: #d32f2f;
+        border-left-color: #d32f2f;
+    }
+    .add-btn {
+        background-color: #10b981;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .add-btn:hover {
+        background-color: #0d9f6e;
+    }
+    .save-btn {
+        background-color: #4a90e2;
+        color: white;
+        width: 100%;
+        padding: 12px;
+        margin-top: 25px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .save-btn:hover {
+        background-color: #3a7bc8;
+    }
+    .readonly {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+    .task-list-container {
+        position: relative;
+        padding-left: 30px;
+    }
+    .task-list {
+        list-style-type: none;
+        padding-left: 0;
+        margin: 0;
+    }
+    .task-list li {
+        padding: 8px 0;
+        font-size: 16px;
+        color: #333;
+        line-height: 1.5;
+    }
+    .timeline-line {
+        position: absolute;
+        left: 10px;
+        top: 8px; /* Align with the first list item */
+        bottom: 8px; /* Align with the last list item */
+        width: 4px;
+        background-color: #4a90e2;
+    }
+    .timeline-line::before,
+    .timeline-line::after {
+        content: '';
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background-color: #4a90e2;
+        border-radius: 50%;
+    }
+    .timeline-line::before {
+        top: -2px; /* Half the height to position the circle correctly */
+        left: 0;
+    }
+    .timeline-line::after {
+        bottom: -2px; /* Half the height to position the circle correctly */
+        left: 0;
+    }
+    .time-estimate {
+        color: #7f8c8d;
+        font-size: 0.9em;
+    }
+    textarea {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        resize: vertical;
+        min-height: 100px;
+    }
+    .invalid-input {
+        border-color: #e74c3c !important;
+    }
+    .project-date-container {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .project-input, .date-input {
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    .project-input {
+        flex: 2;
+    }
+    .date-input {
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-8">
+    <div class="update-container">
+        <!-- Schedule Section -->
+        <div class="section-card">
+            <h3 class="section-title">Today's Schedule</h3>
+            {% if schedule.tasks %}
+                <div class="task-list-container">
+                    <div class="timeline-line"></div>
+                    <ul class="task-list">
+                        {% for task in schedule.tasks %}
+                        <li>{{ forloop.counter }}. {{ task.description }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% else %}
+                <div class="text-center py-4">No schedule found</div>
+            {% endif %}
+        </div>
+
+        <!-- Update Section -->
+        <div class="section-card">
+            <h3 class="section-title">Daily Update</h3>
+            <div class="project-date-container">
+                <input type="text" class="project-input" id="project-name" placeholder="Project Name" {% if not is_editable %}readonly{% endif %} value="{% if update %}{{ update.schedule.project|escape }}{% endif %}">
+            </div>
+            <div id="updates-container">
+                {% if update and update.updates %}
+                    {% for update_line in update.updates %}
+                    <div class="update-item" data-id="{{ forloop.counter }}">
+                        <input type="text" class="update-input" value="{{ update_line.description|escape }}" 
+                               {% if not is_editable %}readonly{% endif %} placeholder="What did you work on?">
+                        <div class="time-spent-container">
+                            <input type="text" class="time-spent" value="{{ update_line.time|escape }}" 
+                                   {% if not is_editable %}readonly class="readonly"{% endif %} placeholder="Time spent">
+                            {% if is_editable %}
+                            <div class="time-unit-dropdown">
+                                <div data-unit="h">Hours</div>
+                                <div data-unit="m">Minutes</div>
+                                <div data-unit="s">Seconds</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if is_editable %}
+                        <div class="action-buttons">
+                            <button class="edit-btn" title="Edit"><i class="fas fa-pen"></i></button>
+                            <button class="delete-btn" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="update-item" data-id="1">
+                        <input type="text" class="update-input" placeholder="What did you work on?">
+                        <div class="time-spent-container">
+                            <input type="text" class="time-spent" placeholder="Time spent">
+                            <div class="time-unit-dropdown">
+                                <div data-unit="h">Hours</div>
+                                <div data-unit="m">Minutes</div>
+                                <div data-unit="s">Seconds</div>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="edit-btn" title="Edit"><i class="fas fa-pen"></i></button>
+                            <button class="delete-btn" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            {% if is_editable %}
+                <button id="add-update-btn" class="add-btn mt-3">
+                    <i class="fas fa-plus"></i> Add Another Update
+                </button>
+                
+                <div id="time-summary" class="time-summary">
+                    {% if update %}
+                        Total time spent: <strong>{{ update.total_time_spent_formatted }}</strong>
+                    {% else %}
+                        Total time spent: <strong>0h 0m</strong>
+                    {% endif %}
+                </div>
+                
+                <div id="justification-box" class="justification-box">
+                    <h4>Justification Required</h4>
+                    <p>You've logged <strong><span id="total-time-display">
+                        {% if update %}{{ update.total_time_spent|floatformat:2 }}{% else %}0{% endif %}
+                    </span> hours</strong> (8 hours required)</p>
+                    <textarea id="justification-input" name="justification" class="w-100 p-2 border rounded-md" rows="3" 
+                              placeholder="Please explain why you worked less than 8 hours today">{% if update %}{{ update.justification|escape }}{% endif %}</textarea>
+                </div>
+                
+                <button id="save-update-btn" class="save-btn">
+                    <i class="fas fa-floppy-disk"></i> Save Daily Update
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<form id="update-form" method="post" action="{% url 'todays_update' %}">
+    {% csrf_token %}
+    <input type="hidden" name="update_description" id="update-description-input">
+    <input type="hidden" name="justification" id="form-justification-input">
+    <input type="hidden" name="project_name" id="project-name-input">
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('updates-container');
+    const addBtn = document.getElementById('add-update-btn');
+    const saveBtn = document.getElementById('save-update-btn');
+    const justificationBox = document.getElementById('justification-box');
+    const timeSummary = document.getElementById('time-summary');
+    const justificationInput = document.getElementById('justification-input');
+    const formJustificationInput = document.getElementById('form-justification-input');
+    const projectNameInput = document.getElementById('project-name');
+    const projectNameFormInput = document.getElementById('project-name-input');
+
+    // Ensure justification box is hidden on page load
+    justificationBox.style.display = 'none';
+
+    // Track edit mode for each item
+    let editModes = {};
+
+    // Initialize edit modes
+    function initializeEditModes() {
+        document.querySelectorAll('.update-item').forEach(item => {
+            const id = item.getAttribute('data-id');
+            editModes[id] = !item.querySelector('.update-input').readOnly;
+            
+            const updateInput = item.querySelector('.update-input');
+            const timeInput = item.querySelector('.time-spent');
+            const editBtn = item.querySelector('.edit-btn');
+            
+            if (editBtn) {
+                editBtn.addEventListener('click', () => {
+                    editModes[id] = !editModes[id];
+                    
+                    if (editModes[id]) {
+                        updateInput.readOnly = false;
+                        timeInput.readOnly = false;
+                        timeInput.classList.remove('readonly');
+                        editBtn.innerHTML = '<i class="fas fa-floppy-disk"></i>';
+                        editBtn.title = 'Save';
+                    } else {
+                        updateInput.readOnly = true;
+                        timeInput.readOnly = true;
+                        timeInput.classList.add('readonly');
+                        editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+                        editBtn.title = 'Edit';
+                        updateTimeSummary();
+                    }
+                });
+            }
+            
+            const deleteBtn = item.querySelector('.delete-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => {
+                    if (container.querySelectorAll('.update-item').length > 1) {
+                        item.remove();
+                        delete editModes[id];
+                        updateTimeSummary();
+                    } else {
+                        alert('You need at least one update item');
+                    }
+                });
+            }
+        });
+    }
+
+    // Setup time input with dropdown
+    function setupTimeInput(input) {
+        const dropdown = input.parentElement.querySelector('.time-unit-dropdown');
+        
+        input.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/[^0-9.hms]/g, '');
+            e.target.value = value;
+            if (value && /^\d*\.?\d*$/.test(value)) {
+                dropdown.style.display = 'block';
+                const rect = input.getBoundingClientRect();
+                dropdown.style.top = `${rect.bottom - rect.top + 5}px`;
+                dropdown.style.left = '0';
+            } else {
+                dropdown.style.display = 'none';
+            }
+            updateTimeSummary();
+        });
+
+        if (dropdown) {
+            dropdown.querySelectorAll('div').forEach(option => {
+                option.addEventListener('click', () => {
+                    const unit = option.getAttribute('data-unit');
+                    let value = input.value.replace(/[^0-9.]/g, '');
+                    if (value === '') value = '0';
+                    input.value = value + unit;
+                    dropdown.style.display = 'none';
+                    updateTimeSummary();
+                });
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+    }
+
+    // Parse time string to minutes
+    function parseTime(timeStr) {
+        if (!timeStr) return 0;
+        
+        timeStr = timeStr.toLowerCase().trim();
+        try {
+            if (timeStr.includes('h')) {
+                return parseFloat(timeStr.split('h')[0]) * 60;
+            } else if (timeStr.includes('m')) {
+                return parseFloat(timeStr.split('m')[0]);
+            } else if (timeStr.includes('s')) {
+                return parseFloat(timeStr.split('s')[0]) / 60;
+            }
+            return 0;
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    // Update the time summary display
+    function updateTimeSummary() {
+        let totalMinutes = 0;
+        let hasInvalidEntries = false;
+        
+        document.querySelectorAll('.update-item').forEach(item => {
+            const timeInput = item.querySelector('.time-spent');
+            const timeValue = timeInput ? timeInput.value.trim() : '';
+            
+            if (timeValue) {
+                const minutes = parseTime(timeValue);
+                if (minutes > 0 || timeValue === '0h') {
+                    totalMinutes += minutes;
+                    timeInput.classList.remove('invalid-input');
+                } else {
+                    hasInvalidEntries = true;
+                    timeInput.classList.add('invalid-input');
+                }
+            } else {
+                hasInvalidEntries = true;
+                timeInput.classList.add('invalid-input');
+            }
+        });
+        
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = Math.round(totalMinutes % 60);
+        const totalHours = (totalMinutes / 60).toFixed(2);
+        
+        timeSummary.innerHTML = `Total time spent: <strong>${hours}h ${minutes}m</strong>`;
+        document.getElementById('total-time-display').textContent = totalHours;
+        
+        if (totalMinutes < 480) {
+            timeSummary.classList.add('error');
+            timeSummary.innerHTML += ' <span>(8 hours required)</span>';
+        } else {
+            timeSummary.classList.remove('error');
+        }
+        
+        if (hasInvalidEntries) {
+            timeSummary.classList.add('error');
+            timeSummary.innerHTML += ' <span>(Some entries have invalid time format)</span>';
+        }
+    }
+
+    // Add new update item
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            const items = container.querySelectorAll('.update-item');
+            const newId = items.length ? parseInt(items[items.length - 1].getAttribute('data-id')) + 1 : 1;
+            
+            const div = document.createElement('div');
+            div.className = 'update-item';
+            div.setAttribute('data-id', newId);
+            div.innerHTML = `
+                <input type="text" class="update-input" placeholder="What did you work on?">
+                <div class="time-spent-container">
+                    <input type="text" class="time-spent" placeholder="Time spent">
+                    <div class="time-unit-dropdown">
+                        <div data-unit="h">Hours</div>
+                        <div data-unit="m">Minutes</div>
+                        <div data-unit="s">Seconds</div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="edit-btn" title="Save"><i class="fas fa-floppy-disk"></i></button>
+                    <button class="delete-btn" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            `;
+            
+            container.appendChild(div);
+            setupTimeInput(div.querySelector('.time-spent'));
+            initializeEditModes();
+            editModes[newId] = true;
+            div.querySelector('.update-input').focus();
+            updateTimeSummary();
+        });
+    }
+
+    // Save updates
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const updates = [];
+            let isValid = true;
+            let hasEmptyFields = false;
+
+            // Validate project name
+            const projectName = projectNameInput.value.trim();
+            if (!projectName) {
+                hasEmptyFields = true;
+                projectNameInput.classList.add('invalid-input');
+            } else {
+                projectNameInput.classList.remove('invalid-input');
+            }
+
+            document.querySelectorAll('.update-item').forEach(item => {
+                const descInput = item.querySelector('.update-input');
+                const timeInput = item.querySelector('.time-spent');
+                const desc = descInput ? descInput.value.trim() : '';
+                const time = timeInput ? timeInput.value.trim() : '';
+                
+                if (!desc || !time) {
+                    hasEmptyFields = true;
+                    if (!desc) descInput.classList.add('invalid-input');
+                    if (!time) timeInput.classList.add('invalid-input');
+                    return;
+                } else {
+                    descInput.classList.remove('invalid-input');
+                    timeInput.classList.remove('invalid-input');
+                }
+                
+                if (!time.match(/^\d*\.?\d+[hms]$/i)) {
+                    isValid = false;
+                    timeInput.classList.add('invalid-input');
+                    return;
+                } else {
+                    timeInput.classList.remove('invalid-input');
+                }
+                
+                updates.push(`${desc}|${time}`);
+            });
+
+            if (hasEmptyFields) {
+                alert('Please fill all required fields including project name, update, and time spent');
+                return;
+            }
+
+            if (!isValid) {
+                alert('Invalid time format. Use format like "2h", "1.5h", "30m", or "45s"');
+                return;
+            }
+
+            if (updates.length === 0) {
+                alert('Please add at least one update');
+                return;
+            }
+
+            let totalMinutes = 0;
+            updates.forEach(u => {
+                const timePart = u.split('|')[1].trim().toLowerCase();
+                totalMinutes += parseTime(timePart);
+            });
+
+            document.getElementById('update-description-input').value = updates.join('\n');
+            formJustificationInput.value = justificationInput.value.trim();
+            projectNameFormInput.value = projectName;
+
+            // Handle justification logic
+            if (totalMinutes < 480) {
+                justificationBox.style.display = 'block';
+                justificationBox.scrollIntoView({ behavior: 'smooth' });
+                if (justificationInput.value.trim() === '') {
+                    justificationInput.classList.add('invalid-input');
+                    alert('Please provide justification for spending less than 8 hours');
+                    return;
+                }
+                justificationInput.classList.remove('invalid-input');
+                document.getElementById('update-form').submit();
+            } else {
+                justificationInput.value = '';
+                formJustificationInput.value = '';
+                justificationBox.style.display = 'none';
+                document.getElementById('update-form').submit();
+            }
+        });
+    }
+
+    // Initialize everything
+    document.querySelectorAll('.time-spent').forEach(input => {
+        setupTimeInput(input);
+    });
+    
+    initializeEditModes();
+    updateTimeSummary();
+});
+</script>
+{% endblock %}

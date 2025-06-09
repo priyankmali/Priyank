@@ -1,0 +1,149 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- Feedback Form -->
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Submit Feedback</h3>
+                    </div>
+                    {% include "main_app/form_template.html" with messages=messages form=form button_text="Submit Feedback" %}
+                </div>
+                <!-- Feedback Table -->
+                <div class="card card-primary" id="feedback-section">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                    </div>
+                    <div class="card-body p-2" id="feedback-table-container">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%">ID</th>
+                                    <th style="width: 40%">Feedback</th>
+                                    <th style="width: 40%">Reply</th>
+                                    <th style="width: 10%">Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for feedback in page_obj %}
+                                <tr>
+                                    <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                                    <td>{{ feedback.feedback }}</td>
+                                    <td>
+                                        {% if feedback.reply %}
+                                            {{ feedback.reply }}
+                                        {% else %}
+                                            <span class="badge badge-warning">No Response Yet</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ feedback.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No feedback found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <!-- Pagination -->
+                        {% if page_obj.paginator.num_pages > 1 %}
+                        <nav aria-label="Feedback pagination">
+                            <ul class="pagination justify-content-center mt-3">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link pagination-link" 
+                                       href="?page={{ page_obj.previous_page_number }}#feedback-section" 
+                                       data-page="{{ page_obj.previous_page_number }}">«</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">«</span>
+                                </li>
+                                {% endif %}
+                                
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link pagination-link" 
+                                               href="?page={{ num }}#feedback-section" 
+                                               data-page="{{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link pagination-link" 
+                                       href="?page={{ page_obj.next_page_number }}#feedback-section" 
+                                       data-page="{{ page_obj.next_page_number }}">»</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">»</span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        <div class="text-center text-muted small mt-2">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+$(document).ready(function() {
+    // Handle pagination clicks
+    $(document).on('click', '.pagination-link', function(e) {
+        e.preventDefault();
+        var page = $(this).data('page');
+        if (!page) return; // Skip if no page data (disabled link)
+
+        $.ajax({
+            url: "{% url 'manager_feedback' %}",
+            type: 'GET',
+            data: {
+                page: page
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(html) {
+                // Create a temporary container to parse the full HTML
+                var $temp = $('<div>').html(html);
+                // Extract only the #feedback-table-container content
+                var $newContent = $temp.find('#feedback-table-container').html();
+                // Update the existing container
+                $('#feedback-table-container').html($newContent);
+                // Update browser URL without reloading
+                window.history.pushState({}, '', '?page=' + page);
+                // Scroll to feedback section
+                document.getElementById('feedback-section').scrollIntoView({ behavior: 'smooth' });
+            },
+            error: function(xhr, status, error) {
+                console.error('Pagination AJAX failed:', error);
+                alert('Error loading page. Please try again.');
+            }
+        });
+    });
+
+    // Handle browser back/forward buttons
+    window.onpopstate = function(event) {
+        window.location.reload(); // Reload to ensure correct state
+    };
+});
+</script>
+{% endblock custom_js %}

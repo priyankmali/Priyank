@@ -1,0 +1,414 @@
+{% extends "main_app/base.html" %}
+{% load static %}
+
+{% block custom_css %}
+    <style>
+        .img-size-32 {
+            width: 32px;
+            height: 32px;
+            object-fit: cover;
+        }
+        .table td, .table th {
+            vertical-align: middle;
+        }
+        .btn-group .btn-sm {
+            padding: 0.25rem 0.5rem;
+        }
+        .font-monospace {
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        tr[data-href] {
+            cursor: pointer;
+        }
+        tr[data-href]:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+    </style>
+{% endblock custom_css %}
+
+{% block content %}
+    <section class="content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card card-primary card-outline">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-laptop-house mr-2"></i>Asset Inventory
+                                <span class="badge badge-light ml-2">{{ page_obj.paginator.count }} items</span>
+                            </h3>
+                            <div class="card-tools">
+                                <form method="get" class="form-inline" id="searchForm">
+                                    <div class="input-group input-group-sm mr-2" style="width: 200px;">
+                                        <input type="text" name="search" id="searchInput" class="form-control" 
+                                               placeholder="Search assets..." value="{{ request.GET.search }}">
+                                        <div class="input-group-append">
+                                            <button type="submit" class="btn btn-default" id="searchBtn">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group mr-2">
+                                        <select name="status" class="form-control form-control-sm" id="statusFilter" onchange="this.form.submit()">
+                                            <option value="">All Statuses</option>
+                                            <option value="issued" {% if request.GET.status == 'issued' %}selected{% endif %}>Issued</option>
+                                            <option value="available" {% if request.GET.status == 'available' %}selected{% endif %}>Available</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group mr-2">
+                                        <select name="category" class="form-control form-control-sm" id="categoryFilter" onchange="this.form.submit()">
+                                            <option value="">All Categories</option>
+                                            {% for category in asset_categories %}
+                                            <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"s" %}selected{% endif %}>
+                                                {{ category.category }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    {% if user.user_type in '12' %}
+                                    <a href="{% url 'asset_app:assets-create' %}" class="btn btn-success btn-sm">
+                                        <i class="fas fa-plus"></i> Add Asset
+                                    </a>
+                                    {% endif %}
+                                </form>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive" id="assets-container">
+                                <table class="table table-hover table-striped">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th style="width: 25%">Asset</th>
+                                            <th>Serial</th>
+                                            <th>Category</th>
+                                            <th>Status</th>
+                                            <th>Assigned To</th>
+                                            <th>Location</th>
+                                            <th>Last Updated</th>
+                                            <th style="width: 120px">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="assets-body">
+                                        {% for asset in assets %}
+                                        {% with issuance=asset.assetsissuance_set.last %}
+                                        <tr data-href="{% url 'asset_app:assets-detail' asset.id %}">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    {% if asset.asset_image %}
+                                                    <img src="{{ asset.asset_image.url }}" alt="{{ asset.asset_name }}" 
+                                                        class="img-circle img-size-32 mr-2">
+                                                    {% else %}
+                                                    <div class="img-circle img-size-32 bg-light d-flex align-items-center justify-content-center mr-2">
+                                                        <i class="fas fa-laptop text-muted"></i>
+                                                    </div>
+                                                    {% endif %}
+                                                    <div>
+                                                        <strong>{{ asset.asset_name|default:"Unnamed" }}</strong><br>
+                                                        <small class="text-muted">{{ asset.asset_brand|default:"" }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="font-monospace">{{ asset.asset_serial_number|truncatechars:12 }}</span>
+                                                {% if asset.barcode %}
+                                                <a href="{{ asset.barcode.url }}" download class="text-muted ml-1" title="Download Barcode">
+                                                    <i class="fas fa-barcode"></i>
+                                                </a>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ asset.asset_category }}</td>
+                                            <td>
+                                                <span class="badge badge-{% if asset.is_asset_issued %}success{% else %}secondary{% endif %}">
+                                                    {% if asset.is_asset_issued %}Issued{% else %}Available{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if asset.is_asset_issued and issuance %}
+                                                <div class="d-flex align-items-center">
+                                                    <div class="mr-2">
+                                                        <i class="fas fa-user-circle"></i>
+                                                    </div>
+                                                    <div>
+                                                        {{ issuance.asset_assignee.get_full_name|default:issuance.asset_assignee.username }}
+                                                        <div class="text-muted small">
+                                                            {{ issuance.date_issued|timesince }} ago
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if asset.is_asset_issued and issuance %}
+                                                <span class="badge badge-light">
+                                                    <i class="fas fa-map-marker-alt mr-1"></i>
+                                                    {{ issuance.get_asset_location_display }}
+                                                </span>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="text-nowrap">{{ asset.updated_date|date:"M d, Y" }}</span>
+                                                <div class="text-muted small">{{ asset.updated_date|timesince }} ago</div>
+                                            </td>
+                                            <td class="text-nowrap">
+                                                <div class="btn-group">
+                                                    <a href="{% url 'asset_app:assets-detail' asset.id %}" class="btn btn-sm btn-info" title="View Details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    {% if user.user_type in '12' %}
+                                                    <a href="{% url 'asset_app:asset-update' asset.pk %}" class="btn btn-sm btn-primary" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'asset_app:asset-delete' asset.pk %}" class="btn btn-sm btn-danger" 
+                                                       title="Delete Asset"
+                                                       onclick="return confirm('Are you sure you want to delete this asset?');">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endwith %}
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-4">
+                                                <i class="fas fa-box-open fa-2x mb-2"></i><br>
+                                                No assets found matching your criteria
+                                                {% if request.GET.search or request.GET.status or request.GET.category %}
+                                                <div class="mt-2">
+                                                    <a href="{% url 'asset_app:assets-list' %}" class="btn btn-sm btn-outline-secondary">
+                                                        Clear filters
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+
+                                {% if page_obj.has_other_pages %}
+                                <nav aria-label="Assets pagination" id="assets-pagination">
+                                    <ul class="pagination justify-content-center mt-3">
+                                        {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link pagination-link" 
+                                               href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" 
+                                               data-page="{{ page_obj.previous_page_number }}" 
+                                               data-section="asset"
+                                               aria-label="Previous">
+                                                <span aria-hidden="true">«</span>
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link" aria-hidden="true">«</span>
+                                        </li>
+                                        {% endif %}
+
+                                        {% for num in page_obj.paginator.page_range %}
+                                            {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link pagination-link" 
+                                                   href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" 
+                                                   data-page="{{ num }}"
+                                                   data-section="asset">{{ num }}</a>
+                                            </li>
+                                            {% endif %}
+                                        {% endfor %}
+
+                                        {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link pagination-link" 
+                                               href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search|urlencode }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" 
+                                               data-page="{{ page_obj.next_page_number }}"
+                                               data-section="asset"
+                                               aria-label="Next">
+                                                <span aria-hidden="true">»</span>
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link" aria-hidden="true">»</span>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bootstrap Toast for Messages -->
+    <div class="toast" id="messageToast" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+        <div class="toast-header">
+            <strong class="mr-auto">Notification</strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast">×</button>
+        </div>
+        <div class="toast-body" id="toastMessage"></div>
+    </div>
+{% endblock %}
+
+{% block custom_js %}
+    <script>
+    // Initialize toast
+    $('.toast').toast({ delay: 3000 });
+
+    function showToast(message, type = 'success') {
+        $('#toastMessage').text(message);
+        $('.toast').removeClass('bg-success bg-danger').addClass('bg-' + type);
+        $('.toast').toast('show');
+    }
+
+    // Helper function to get filter parameters
+    function getFilterParams() {
+        const params = new URLSearchParams();
+        const search = $('#searchInput').val();
+        const status = $('#statusFilter').val();
+        const category = $('#categoryFilter').val();
+        
+        if (search) params.set('search', search);
+        if (status) params.set('status', status);
+        if (category) params.set('category', category);
+        
+        return params.toString() ? `&${params.toString()}` : '';
+    }
+
+    $(document).ready(function() {
+        // AJAX Pagination
+        $(document).on('click', '.pagination-link', function(e) {
+            e.preventDefault();
+            const page = $(this).data('page');
+            const url = `?page=${page}${getFilterParams()}`;
+            const containerId = '#assets-container';
+            const bodyId = '#assets-body';
+            const paginationId = '#assets-pagination';
+
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Update table body
+                const newBody = doc.querySelector(bodyId);
+                document.querySelector(bodyId).innerHTML = newBody.innerHTML;
+                
+                // Update pagination
+                const newPagination = doc.querySelector(paginationId);
+                const paginationContainer = document.querySelector(paginationId);
+                if (newPagination && paginationContainer) {
+                    paginationContainer.innerHTML = newPagination.innerHTML;
+                } else if (paginationContainer) {
+                    paginationContainer.innerHTML = '';
+                }
+                
+                // Re-attach event listeners
+                $('[title]').tooltip();
+                $('tr[data-href]').click(function(e) {
+                    if (!$(e.target).is('a, button, input, i, .btn')) {
+                        window.location = $(this).attr('data-href');
+                    }
+                });
+                
+                // Update browser URL
+                window.history.pushState({}, '', url);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error loading page. Please try again.', 'danger');
+            });
+        });
+
+        // AJAX Search
+        let searchTimeout;
+        $('#searchInput').on('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const url = `?page=1${getFilterParams()}`;
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    // Update table body
+                    document.querySelector('#assets-body').innerHTML = doc.querySelector('#assets-body').innerHTML;
+                    
+                    // Update pagination
+                    const newPagination = doc.querySelector('#assets-pagination');
+                    const paginationContainer = document.querySelector('#assets-pagination');
+                    if (newPagination && paginationContainer) {
+                        paginationContainer.innerHTML = newPagination.innerHTML;
+                    } else if (paginationContainer) {
+                        paginationContainer.innerHTML = '';
+                    }
+                    
+                    // Re-attach event listeners
+                    $('[title]').tooltip();
+                    $('tr[data-href]').click(function(e) {
+                        if (!$(e.target).is('a, button, input, i, .btn')) {
+                            window.location = $(this).attr('data-href');
+                        }
+                    });
+                    
+                    // Update browser URL
+                    window.history.pushState({}, '', url);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error loading search results. Please try again.', 'danger');
+                });
+            }, 300); // 300ms debounce
+        });
+
+        // Handle browser back/forward buttons
+        window.onpopstate = function(event) {
+            window.location.reload();
+        };
+
+        // Initialize tooltips and row click handlers
+        $('[title]').tooltip();
+        
+        $('tr[data-href]').click(function(e) {
+            if (!$(e.target).is('a, button, input, i, .btn')) {
+                window.location = $(this).attr('data-href');
+            }
+        });
+
+        $('a[href*="asset-delete"]').click(function(e) {
+            if (!confirm('Are you sure you want to delete this asset?')) {
+                e.preventDefault();
+            }
+        });
+
+        $('a[href*="asset-return"], a[href*="asset-issue"]').click(function(e) {
+            if (!confirm('Are you sure you want to perform this action?')) {
+                e.preventDefault();
+            }
+        });
+    });
+    </script>
+{% endblock custom_js %}

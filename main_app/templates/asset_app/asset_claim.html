@@ -1,0 +1,151 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %} Unclaimed Devices {% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+
+                <!-- Claim History -->
+                <div class="card card-dark mt-2">
+                    <div class="card-header">
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Asset</th>
+                                    <th>Serial No</th>
+                                    <th>Brand</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Loop through unclaimed assets -->
+                                {% for asset in unclaimed_assets %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ asset.asset_name }}</td>
+                                        <td>{{ asset.asset_serial_number }}</td>
+                                        <td>{{ asset.asset_brand }}</td>
+                                        <td>
+                                            <span class="badge {% if asset.status == 'Active' %}bg-success{% else %}bg-secondary{% endif %}">
+                                                {{ asset.status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if asset.id in pending_requests %}
+                                                <button type="button" class="btn btn-success btn-sm" disabled>
+                                                    Requested
+                                                </button>
+                                            {% else %}
+                                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modal-{{ asset.id }}">
+                                                <i class="fas fa-paper-plane mr-1"></i> Request Asset
+                                            </button>
+                                            
+                                            <!-- Modal -->
+                                            <div class="modal fade" id="modal-{{ asset.id }}" tabindex="-1" role="dialog" aria-labelledby="modalLabel-{{ asset.id }}" aria-hidden="true">
+                                                <div class="modal-dialog modal-lg" role="document">
+                                                    <div class="modal-content shadow-lg">
+                                                        <div class="modal-header bg-gradient-primary text-white">
+                                                            <h5 class="modal-title" id="modalLabel-{{ asset.id }}">
+                                                                <i class="fas fa-hand-holding mr-2"></i>Request Asset
+                                                            </h5>
+                                                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                                <span aria-hidden="true">&times;</span>
+                                                            </button>
+                                                        </div>
+                                            
+                                                        <!-- Form inside modal -->
+                                                        <form method="post" action="{% url 'asset_app:asset-claim' %}">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="asset_id" value="{{ asset.id }}">
+                                                            
+                                                            <div class="modal-body">
+                                                                <div class="row">
+                                                                    <!-- Left Column - Asset Details -->
+                                                                    <div class="col-md-6 border-right">
+                                                                        <div class="asset-details-card p-3 mb-4 bg-light rounded">
+                                                                            <h6 class="text-primary mb-3"><i class="fas fa-info-circle mr-2"></i>Asset Details</h6>
+                                                                            {% if asset.asset_image and asset.asset_image.url %}
+                                                                            <div class="asset-image-container text-center mb-3">
+                                                                                <img src="{{ asset.asset_image.url }}" class="img-fluid rounded border" alt="Asset Image" style="max-height: 160px;">
+                                                                            </div>
+                                                                            {% else %}
+                                                                            <div class="asset-image-container text-center mb-3">
+                                                                                <div class="no-image-placeholder bg-light rounded border p-4 text-muted">
+                                                                                    <i class="fas fa-image fa-3x mb-2"></i>
+                                                                                    <p class="small">No image available</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            {% endif %}
+                                                                            <div class="asset-info">
+                                                                                <p class="mb-2"><strong><i class="fas fa-tag mr-2"></i>Name:</strong> {{ asset.asset_name }}</p>
+                                                                                <p class="mb-2"><strong><i class="fas fa-barcode mr-2"></i>Serial No:</strong> {{ asset.asset_serial_number }}</p>
+                                                                                <p class="mb-2"><strong><i class="fas fa-industry mr-2"></i>Brand:</strong> {{ asset.asset_brand }}</p>
+                                                                                {% if asset.os_version %}
+                                                                                <p class="mb-2"><strong><i class="fas fa-code-branch mr-2"></i>OS Version:</strong> {{ asset.os_version }}</p>
+                                                                                {% endif %}
+                                                                                {% if asset.ip_address %}
+                                                                                <p class="mb-3"><strong><i class="fas fa-network-wired mr-2"></i>IP Address:</strong> {{ asset.ip_address }}</p>
+                                                                                {% endif %}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <!-- Right Column - Request Form -->
+                                                                    <div class="col-md-6">
+                                                                        <div class="form-group">
+                                                                            {% if asset.qr_code and asset.qr_code.url %}
+                                                                            <div class="qr-code-container text-center">
+                                                                                <img src="{{ asset.qr_code.url }}" class="img-thumbnail" alt="QR Code" style="max-width: 160px;">
+                                                                                <p class="small text-muted mt-1">Scan to verify asset</p>
+                                                                            </div>
+                                                                            {% endif %}
+                                                                            <label for="custom-message-{{ asset.id }}" class="font-weight-bold text-primary">
+                                                                                <i class="fas fa-comment-dots mr-2"></i>Request Message
+                                                                            </label>
+                                                                            <textarea class="form-control" id="custom-message-{{ asset.id }}" 
+                                                                                      name="message" placeholder="Please explain why you need this asset..." 
+                                                                                      rows="5" style="resize: none;" required></textarea>
+                                                                            <small class="form-text text-muted">This message will be sent to the asset manager ({{ asset.manager.get_full_name|default:asset.manager.username }}).</small>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div class="modal-footer bg-light">
+                                                                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">
+                                                                    <i class="fas fa-times mr-1"></i> Cancel
+                                                                </button>
+                                                                <button type="submit" class="btn btn-success">
+                                                                    <i class="fas fa-paper-plane mr-1"></i> Send Request
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center">No unclaimed assets available.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

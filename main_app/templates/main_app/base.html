@@ -1,0 +1,270 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Koli Infotech</title>
+    <!-- Tell the browser to be responsive to screen width -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="{% static 'plugins/fontawesome-free/css/all.min.css'%} ">
+    <!-- Ionicons -->
+    <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <!-- Tempusdominus Bbootstrap 4 -->
+    <link rel="stylesheet"
+        href="{% static 'plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css'%} ">
+    <!-- iCheck -->
+    <link rel="stylesheet" href="{% static 'plugins/icheck-bootstrap/icheck-bootstrap.min.css'%} ">
+    <!-- JQVMap -->
+    <link rel="stylesheet" href="{% static 'plugins/jqvmap/jqvmap.min.css'%} ">
+    <!-- Theme style -->
+    <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css'%} ">
+    <!-- overlayScrollbars -->
+    <link rel="stylesheet" href="{% static 'plugins/overlayScrollbars/css/OverlayScrollbars.min.css'%} ">
+    <!-- Daterange picker -->
+    <link rel="stylesheet" href="{% static 'plugins/daterangepicker/daterangepicker.css'%} ">
+    <!-- summernote -->
+    <link rel="stylesheet" href="{% static 'plugins/summernote/summernote-bs4.css'%} ">
+    <!-- Google Font: Source Sans Pro -->
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        
+        .dropdown-menu-right{
+            background: linear-gradient(135deg, #096aa1 0%, #069619 100%) !important;
+        }
+        div > a {
+            color: white !important;
+        }
+        div > a :hover{
+           background-color: black !important; 
+        }
+    </style>
+    {% block custom_css %}
+
+    {% endblock custom_css %}
+</head>
+
+<body class="hold-transition sidebar-mini layout-fixed">
+    <div class="wrapper">
+
+        <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand sticky-top navbar-white navbar-light">
+            <!-- Left navbar links -->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a>
+                </li>
+            </ul>
+    
+            <!-- Notification Dropdown -->
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        {% if total_unread_notifications > 0 %}
+                            <span class="badge badge-danger navbar-badge">{{ total_unread_notifications }}</span>
+                        {% endif %}
+                    </a>
+                    {% if request.user.user_type  == '2' %}
+                        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'manager_view_notification' %}?type=asset" class="dropdown-item">
+                                <i class="fas fa-laptop mr-2"></i> {{ manager_general_count }} General
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'manager_view_notification' %}?type=leave" class="dropdown-item">
+                                <i class="fas fa-envelope mr-2"></i> {{ employee_leave_request_to_manager_count }} Leave Requests
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'manager_apply_leave' %}?type=leave" class="dropdown-item">
+                                <i class="fas fa-envelope mr-2"></i> {{ manager_leave_request_from_ceo_count }} My Leave Requests
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'manager_view_notification' %}?type=clockout" class="dropdown-item">
+                                <i class="fas fa-clock mr-2"></i> {{ employee_clockout_request_to_manager_count }} Clockout Requests
+                            </a>
+                            {% comment %} <div class="dropdown-divider"></div>
+                            <a href="{% url 'manager_view_notification' %}?type=asset" class="dropdown-item">
+                                <i class="fas fa-laptop mr-2"></i> {{ total_asset_unread_notifications }} Asset
+                            </a> {% endcomment %}
+                        </div>
+                    {% elif request.user.user_type == '1' %}
+                        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'admin_view_notification' %}?type=leave" class="dropdown-item">
+                                <i class="fas fa-envelope mr-2"></i> {{ ceo_notification_from_manager_leave_request }} Leave Requests
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'employee_view_notification' %}?type=asset" class="dropdown-item">
+                                <i class="fas fa-laptop mr-2"></i> {{ employee_notification_from_manager_count }} General
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'employee_requests' %}?type=leave" class="dropdown-item">
+                                <i class="fas fa-envelope mr-2"></i> {{ employee_leave_approved_or_rejected_notification_count }} Leave Requests
+                            </a>
+                            {% comment %} <div class="dropdown-divider"></div>
+                            <a href="{% url 'early_clock_out_request_page' %}?type=clockout" class="dropdown-item">
+                                <i class="fas fa-clock mr-2"></i> {{ employee_clockout_request_to_manager_count }} Clockout Requests
+                            </a> {% endcomment %}
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'manager_view_notification' %}?type=asset" class="dropdown-item">
+                                <i class="fas fa-laptop mr-2"></i> {{ total_asset_unread_notifications }} Asset
+                            </a>
+                        </div>
+                    {% endif %}
+                </li>
+            </ul>
+    
+            <!-- Right-aligned Clock Action buttons -->
+            {% if user.user_type != '1' %}
+                {% url 'employee_home' as  employee_home %}
+                {% url 'manager_home' as  manager_home %}
+                {% if request.path == employee_home or request.path == manager_home %}
+                    <ul class="navbar-nav">
+                        {% include "main_app/timesheet_clock.html" %}
+                    </ul>
+                {% endif %}
+            {% endif %}
+        </nav>
+        
+        <!-- /.navbar -->
+        <!-- Main Sidebar Container -->
+ 
+        {% include "main_app/sidebar_template.html" with user=user %}
+      
+        <div class="content-wrapper">
+
+            <!-- Content Wrapper. Contains page content -->
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0 text-dark">{% block page_title %}{% endblock page_title %}</h1>
+                        </div><!-- /.col -->
+                        <div class="col-sm-6">
+                            
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="#">Home</a></li>
+                                <li class="breadcrumb-item active">{{ page_title }}</li>
+                            </ol>
+                        </div><!-- /.col -->
+                    </div><!-- /.row -->
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content-header -->
+
+            <!-- Main content -->
+            
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+            <div class="form-group">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert 
+                            {% if message.tags == 'success' %}alert-success
+                            {% elif message.tags == 'warning' %}alert-warning
+                            {% elif message.tags == 'error' %}alert-danger
+                            {% else %}alert-info
+                            {% endif %}
+                            alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            </div></div></div></section>
+            {% block content %}
+
+            {% endblock content %}
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+        {% include "main_app/footer.html" %}
+
+
+    </div>
+    <!-- Bootstrap 5 -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="..." crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="..." crossorigin="anonymous"></script>
+    <script src="https://www.google.com/recaptcha/api.js"></script>
+
+    <!-- jQuery -->
+    <script src="{% static 'plugins/jquery/jquery.min.js'%} "></script>
+    <!-- jQuery UI 1.11.4 -->
+    <script src="{% static 'plugins/jquery-ui/jquery-ui.min.js'%} "></script>
+    <!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->
+    <script>
+        $.widget.bridge('uibutton', $.ui.button)
+    </script>
+    <!-- Bootstrap 4 -->
+    <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js'%} "></script>
+    <!-- ChartJS -->
+    <script src="{% static 'plugins/chart.js/Chart.min.js'%} "></script>
+    <!-- Sparkline -->
+    <script src="{% static 'plugins/sparklines/sparkline.js'%} "></script>
+    <!-- JQVMap -->
+    <script src="{% static 'plugins/jqvmap/jquery.vmap.min.js'%} "></script>
+    <script src="{% static 'plugins/jqvmap/maps/jquery.vmap.usa.js'%} "></script>
+    <!-- jQuery Knob Chart -->
+    <script src="{% static 'plugins/jquery-knob/jquery.knob.min.js'%} "></script>
+    <!-- daterangepicker -->
+    <script src="{% static 'plugins/moment/moment.min.js'%} "></script>
+    <script src="{% static 'plugins/daterangepicker/daterangepicker.js'%} "></script>
+    <!-- Tempusdominus Bootstrap 4 -->
+    <script src="{% static 'plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js'%} "></script>
+    <!-- Summernote -->
+    <script src="{% static 'plugins/summernote/summernote-bs4.min.js'%} "></script>
+    <!-- overlayScrollbars -->
+    <script src="{% static 'plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js'%} "></script>
+    <!-- AdminLTE App -->
+    <script src="{% static 'dist/js/adminlte.js'%} "></script>
+    <!-- AdminLTE dashboard demo (This is only for demo purposes) -->
+    <script src="{% static 'dist/js/pages/dashboard.js'%} "></script>
+    <!-- AdminLTE for demo purposes -->
+    <script src="{% static 'dist/js/demo.js'%} "></script>
+    <script>
+    // Function to play notification sound
+        {% comment %} function playNotificationSound() {
+            var sound = document.getElementById('notificationSound');
+            sound.play().catch(function(error) {
+                console.log("Error playing sound:", error);
+            });
+        }
+
+        // Play sound when alerts are present
+        document.addEventListener('DOMContentLoaded', function() {
+            var alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                playNotificationSound();
+            }
+        });
+
+        // Play sound when notification dropdown is opened
+        document.querySelector('.dropdown-toggle').addEventListener('click', function() {
+            var dropdownMenu = document.querySelector('.dropdown-menu');
+            if (dropdownMenu.classList.contains('show')) {
+                playNotificationSound();
+            }
+        }); {% endcomment %}
+</script>
+    {% block custom_js %}
+
+    {% endblock custom_js %}
+
+    {% comment %} <audio id="notificationSound" src="{% static 'audio/notification.mp3' %}" preload="auto"></audio> {% endcomment %}
+</body>
+
+</html>

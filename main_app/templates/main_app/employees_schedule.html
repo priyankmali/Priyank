@@ -1,0 +1,347 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block custom_css %}
+<style>
+    :root {
+        --primary: #4361ee;
+        --primary-hover: #3a56d4;
+        --secondary: #3f37c9;
+        --success: #4cc9f0;
+        --light-bg: #f8f9fa;
+        --border-color: #e9ecef;
+        --text-muted: rgb(21, 22, 22);
+    }
+    
+    .schedules-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(80, 24, 24, 0.07);
+        margin-bottom: 2rem;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background-color: white;
+        border-bottom: 1px solid var(--border-color);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--primary);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .filter-section {
+        background-color: var(--light-bg);
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+    
+    .form-group {
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-muted);
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out;
+    }
+    
+    .form-control:focus {
+        border-color: var(--primary);
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+    }
+    
+    .btn-primary {
+        background-color: var(--primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--primary-hover);
+    }
+    
+    .btn-success {
+        background-color: var(--success);
+        color: white;
+    }
+    
+    .schedule-item {
+        border-left: 3px solid var(--primary);
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        background-color: white;
+        border-radius: 0.375rem;
+        box-shadow: 1px 1px 3px rgba(51, 21, 100, 0.5);
+    }
+    
+    .schedule-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .employee-name {
+        font-weight: 600;
+        color: var(--primary);
+    }
+    
+    .schedule-date {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+    
+    .project-name {
+        font-weight: 500;
+        margin-bottom: 0.75rem;
+        color: #495057;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin: 1rem 0 0.5rem;
+        color: #343a40;
+    }
+    
+    .task-list, .update-list {
+        padding-left: 1.25rem;
+        margin: 0;
+    }
+    
+    .task-list li, .update-list li {
+        padding: 0.25rem 0;
+        color: #495057;
+    }
+    
+    .update-item {
+        margin-top: 1rem;
+        padding: 1rem;
+        background-color: var(--light-bg);
+        border-radius: 0.375rem;
+        border-left: 2px solid var(--success);
+    }
+    
+    .update-time {
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+    
+    .empty-state i {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #dee2e6;
+    }
+    
+    @media (max-width: 768px) {
+        .filter-form {
+            grid-template-columns: 1fr;
+        }
+        
+        .schedule-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="schedules-container">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <i class="fas fa-calendar-alt mr-2"></i>
+                All Employee Schedules & Updates
+            </h2>
+        </div>
+        
+        <div class="card-body">
+            <!-- Filter Form -->
+            <div class="filter-section">
+                <form method="get" class="filter-form">
+                    <div class="form-group">
+                        <label for="filter_type" class="form-label">Time Period</label>
+                        <select name="filter_type" id="filter_type" class="form-control" onchange="toggleDateInputs(this)">
+                            <option value="today" {% if filter_type == 'today' %}selected{% endif %}>Today</option>
+                            <option value="weekly" {% if filter_type == 'weekly' %}selected{% endif %}>Last 7 Days</option>
+                            <option value="monthly" {% if filter_type == 'monthly' %}selected{% endif %}>Last 30 Days</option>
+                            <option value="custom" {% if filter_type == 'custom' %}selected{% endif %}>Custom Range</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="start_date_group" style="display: {% if filter_type == 'custom' %}block{% else %}none{% endif %}">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group" id="end_date_group" style="display: {% if filter_type == 'custom' %}block{% else %}none{% endif %}">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="department_id" class="form-label">Department</label>
+                        <select name="department_id" id="department_id" class="form-control">
+                            <option value="all" {% if not department_id %}selected{% endif %}>All Departments</option>
+                            {% for dept in departments %}
+                                <option value="{{ dept.id }}" {% if department_id|add:'0' == dept.id|add:'0' %}selected{% endif %}>
+                                    {{ dept.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="search_name" class="form-label">Search by Name</label>
+                        <input type="text" name="search_name" id="search_name" class="form-control" value="{{ search_name|default:'' }}" placeholder="Enter employee name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter mr-1"></i> Apply Filters
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Schedules Display -->
+            {% if schedules %}
+                {% for schedule in schedules %}
+                    <div class="schedule-item">
+                        <div class="schedule-header">
+                            <span class="employee-name">
+                                {{ schedule.employee.admin.first_name }} {{ schedule.employee.admin.last_name }}
+                                {% if schedule.employee.department %}
+                                    ({{ schedule.employee.department.name }})
+                                {% endif %}
+                            </span>
+                            <span class="schedule-date">
+                                {{ schedule.date|date:"F j, Y" }}
+                            </span>
+                        </div>
+                        
+                        {% if schedule.project %}
+                            <div class="project-name">
+                                <i class="fas fa-project-diagram mr-1"></i>
+                                {{ schedule.project|escape }}
+                            </div>
+                        {% endif %}
+                        
+                        <h4 class="section-title">Tasks</h4>
+                        {% if schedule.task_description_lines %}
+                            <ol class="task-list">
+                                {% for task in schedule.task_description_lines %}
+                                    <li>{{ task|escape }}</li>
+                                {% endfor %}
+                            </ol>
+                        {% else %}
+                            <p class="text-muted">No tasks listed for this day</p>
+                        {% endif %}
+                        
+                        <!-- Updates for this schedule -->
+                        {% if schedule.updates.exists %}
+                            <h4 class="section-title">Updates</h4>
+                            {% for update in schedule.updates.all %}
+                                <div class="update-item">
+                                    <div class="update-time">
+                                        <i class="far fa-clock mr-1"></i>
+                                        {{ update.updated_at|date:"F j, Y, g:i a" }}
+                                    </div>
+                                    {% if update.update_description_lines %}
+                                        <ol class="update-list">
+                                            {% for update_line in update.update_description_lines %}
+                                                <li>{{ update_line|escape }}</li>
+                                            {% endfor %}
+                                        </ol>
+                                    {% else %}
+                                        <p class="text-muted">No update details provided</p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <h4 class="section-title">Updates</h4>
+                            <p class="text-muted">No updates submitted for this schedule</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="far fa-calendar-alt"></i>
+                    <h3>No Schedules Found</h3>
+                    <p>No schedules match your current filters</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDateInputs(select) {
+    const startDateGroup = document.getElementById('start_date_group');
+    const endDateGroup = document.getElementById('end_date_group');
+    
+    if (select.value === 'custom') {
+        startDateGroup.style.display = 'block';
+        endDateGroup.style.display = 'block';
+    } else {
+        startDateGroup.style.display = 'none';
+        endDateGroup.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

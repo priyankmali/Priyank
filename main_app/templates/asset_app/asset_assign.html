@@ -1,0 +1,392 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block content %}
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col">
+                <h2>
+                    {% if request.user.user_type == '3' %}
+                        <i class="fas fa-laptop mr-2"></i>My Assets
+                    {% elif request.user.user_type == '2' %}
+                        <i class="fas fa-tasks mr-2"></i>Assets I've Assigned
+                    {% else %}
+                        <i class="fas fa-cogs mr-2"></i>All Asset Assignments
+                    {% endif %}
+                </h2>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div class="card shadow">
+                    <div class="card-body">
+                        {% if asset_issuances %}
+                        <div class="table-responsive" id="asset-issuances-container">
+                            <table class="table table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Asset</th>
+                                        <th>Details</th>
+                                        <th>Issued On</th>
+                                        <th>Location</th>
+                                        {% if request.user.user_type != '3' %}
+                                            <th>Assignee</th>
+                                        {% elif request.user.user_type == '1' %}
+                                            <th>Manager</th>
+                                        {% endif %}
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="asset-issuances-body">
+                                    {% for issuance in asset_issuances %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    {% if issuance.asset.asset_image %}
+                                                    <img src="{{ issuance.asset.asset_image.url }}" 
+                                                        class="rounded-circle mr-3" 
+                                                        width="40" height="40" 
+                                                        alt="{{ issuance.asset.asset_name }}">
+                                                    {% endif %}
+                                                    <div>
+                                                        <strong>{{ issuance.asset.asset_name }}</strong><br>
+                                                        <small class="text-muted">{{ issuance.asset.asset_serial_number }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <small>
+                                                    <strong>Brand:</strong> {{ issuance.asset.asset_brand }}<br>
+                                                    {% if issuance.asset.os_version %}
+                                                    <strong>OS:</strong> {{ issuance.asset.os_version }}<br>
+                                                    {% endif %}
+                                                    {% if issuance.asset.ip_address %}
+                                                    <strong>IP:</strong> {{ issuance.asset.ip_address }}
+                                                    {% endif %}
+                                                </small>
+                                            </td>
+                                            <td>{{ issuance.date_issued|date:"M d, Y" }}</td>
+                                            <td>
+                                                <span class="badge badge-info">
+                                                    {{ issuance.get_asset_location_display }}
+                                                </span>
+                                            </td>
+                                            {% if request.user.user_type != '3' %}
+                                            <td>
+                                                {{ issuance.asset_assignee.get_full_name }}<br>
+                                                <small class="text-muted">{{ issuance.asset_assignee.department|default:"-" }}</small>
+                                            </td>
+                                            {% elif request.user.user_type == '1' %}
+                                            <td>
+                                                {{ issuance.asset.manager.get_full_name }}
+                                            </td>
+                                            {% endif %}
+                                            <td>
+                                                <a href="{% url 'asset_app:assets-detail' issuance.asset.id %}" 
+                                                class="btn btn-sm btn-outline-primary" 
+                                                title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if request.user.user_type == '3' %}
+                                                    <button class="btn btn-sm btn-outline-warning" 
+                                                            title="Report Issue"
+                                                            data-toggle="modal" 
+                                                            data-target="#issueModal{{ issuance.id }}">
+                                                        <i class="fas fa-exclamation-circle"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% if request.user.user_type == '3' %}
+                                            <div class="modal fade" id="issueModal{{ issuance.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                                <div class="modal-dialog" role="document">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header bg-warning">
+                                                            <h5 class="modal-title">Report Issue with {{ issuance.asset.asset_name }}</h5>
+                                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                                <span aria-hidden="true">×</span>
+                                                            </button>
+                                                        </div>
+                                                        <form method="POST" action="{% url 'asset_app:my-assets' %}">
+                                                            {% csrf_token %}
+                                                            <div class="modal-body">
+                                                                <input type="hidden" name="asset_id" value="{{ issuance.asset.id }}">
+                                                                <div class="form-group">
+                                                                    <label>Issue Type</label>
+                                                                    <select name="issue_type" class="form-control" required>
+                                                                        <option value="">Select issue type</option>
+                                                                        {% for value, label in issue_types %}
+                                                                            <option value="{{ value }}">{{ label }}</option>
+                                                                        {% endfor %}
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label class="font-weight-bold">Description*</label>
+                                                                    <textarea name="description" class="form-control" rows="4" 
+                                                                        placeholder="Be specific about:
+    - What happened
+    - When it started
+    - Error messages (if any)" 
+                                                                        required></textarea>
+                                                                </div>
+                                                                <div class="form-group border-top pt-3">
+                                                                    <div class="custom-control custom-checkbox">
+                                                                        <input type="checkbox" class="custom-control-input" 
+                                                                            id="recurringCheck{{ issuance.id }}" name="is_recurring">
+                                                                        <label class="custom-control-label" for="recurringCheck{{ issuance.id }}">
+                                                                            This is a recurring issue
+                                                                        </label>
+                                                                        <small class="form-text text-muted">
+                                                                            Check if you've experienced this same problem before
+                                                                        </small>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="form-group recurrence-notes" style="display:none;">
+                                                                    <label>Recurrence Details</label>
+                                                                    <textarea name="recurrence_notes" class="form-control" rows="2"
+                                                                        placeholder="How often does this happen? When was the first occurrence?"></textarea>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                                                <button type="submit" class="btn btn-warning">Report Issue</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% if is_paginated %}
+                            <nav aria-label="Asset issuances pagination" id="asset-issuances-pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1" data-page="1" data-section="asset" aria-label="First">
+                                            <span aria-hidden="true">««</span>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}" data-page="{{ page_obj.previous_page_number }}" data-section="asset" aria-label="Previous">
+                                            <span aria-hidden="true">«</span>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ num }}" data-page="{{ num }}" data-section="asset">{{ num }}</a></li>
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}" data-page="{{ page_obj.next_page_number }}" data-section="asset" aria-label="Next">
+                                            <span aria-hidden="true">»</span>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" data-page="{{ page_obj.paginator.num_pages }}" data-section="asset" aria-label="Last">
+                                            <span aria-hidden="true">»»</span>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                            <div class="alert alert-info text-center">
+                                {% if request.user.user_type == '3' %}
+                                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                <h4>No Assets Assigned to You</h4>
+                                <p>You currently don't have any assets assigned. Contact your manager if you need equipment.</p>
+                                {% elif request.user.user_type == '2' %}
+                                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                <h4>No Assets Assigned Yet</h4>
+                                <p>You haven't assigned any assets to employees yet.</p>
+                                {% else %}
+                                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                <h4>No Asset Assignments Found</h4>
+                                <p>There are no asset assignments in the system yet.</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle pagination clicks
+    document.querySelectorAll('#asset-issuances-pagination a.page-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const page = this.dataset.page;
+            const url = `?page=${page}`;
+            const containerId = '#asset-issuances-container';
+            const bodyId = '#asset-issuances-body';
+            const paginationId = '#asset-issuances-pagination';
+
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Update table body
+                const newBody = doc.querySelector(bodyId);
+                document.querySelector(bodyId).innerHTML = newBody.innerHTML;
+                
+                // Update pagination
+                const newPagination = doc.querySelector(paginationId);
+                const paginationContainer = document.querySelector(paginationId);
+                if (newPagination && paginationContainer) {
+                    paginationContainer.innerHTML = newPagination.innerHTML;
+                } else if (paginationContainer) {
+                    paginationContainer.innerHTML = '';
+                }
+                
+                // Re-attach event listeners to new pagination links
+                document.querySelectorAll(`${paginationId} a.page-link`).forEach(newLink => {
+                    newLink.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const page = this.dataset.page;
+                        fetch(`?page=${page}`, {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.text())
+                        .then(html => {
+                            const newDoc = parser.parseFromString(html, 'text/html');
+                            document.querySelector(bodyId).innerHTML = newDoc.querySelector(bodyId).innerHTML;
+                            const newPagination = newDoc.querySelector(paginationId);
+                            if (newPagination) {
+                                paginationContainer.innerHTML = newPagination.innerHTML;
+                            } else {
+                                paginationContainer.innerHTML = '';
+                            }
+                        });
+                    });
+                });
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+
+    // Existing jQuery code for recurrence notes
+    $(document).ready(function(){
+        $(document).on('change', '[id^="recurringCheck"]', function(){
+            $(this).closest('.modal-body').find('.recurrence-notes').toggle(this.checked);
+        });
+    });
+});
+</script>
+{% endblock custom_js %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- Stats Cards
+            <div class="row">
+                {% if request.user.user_type == '3' %}
+                    <div class="col-md-6">
+                        <div class="card bg-primary text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ total_assets }}</h5>
+                                <p class="card-text">Total Assets Assigned</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-success text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ active_assets }}</h5>
+                                <p class="card-text">Currently Active</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                {% elif request.user.user_type == '2' %}
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ total_issued }}</h5>
+                                <p class="card-text">Total Assignments</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ active_assignments }}</h5>
+                                <p class="card-text">Active Assignments</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card {% if pending_issues > 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ pending_issues }}</h5>
+                                <p class="card-text">Pending Issues</p>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ total_issued }}</h5>
+                                <p class="card-text">Total Assignments</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ active_assignments }}</h5>
+                                <p class="card-text">Active Assignments</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ total_managers }}</h5>
+                                <p class="card-text">Managers</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card {% if all_pending_issues > 0 %}bg-danger{% else %}bg-warning{% endif %} text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ all_pending_issues }}</h5>
+                                <p class="card-text">Pending Issues</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div> -->

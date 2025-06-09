@@ -1,0 +1,234 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block custom_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container--default .select2-selection--multiple {
+        min-height: 38px;
+        border: 1px solid #ced4da;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice  {
+      color: black !important;
+    }
+    .hidden-field {
+        display: none;
+    }
+    .disabled-select {
+        opacity: 0.6;
+        pointer-events: none;
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <form method="POST">
+      {% csrf_token %}
+      <div class="card card-primary">
+        <div class="card-header">
+          <h3 class="card-title">{{ page_title }}</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label for="department">Department</label>
+            <select name="department" id="department" class="form-control">
+              <option value="">-- Select Department --</option>
+              <option value="all">All Departments</option>
+              {% for department in departments %}
+                <option value="{{ department.id }}">{{ department.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group" id="employee-group">
+            <label for="employee">Employee(s)</label>
+            <select name="employee" id="employee" class="form-control select2-multiple" multiple="multiple">
+              <!-- Filled dynamically by JS -->
+            </select>
+            <small class="form-text text-muted">Leave empty to select all employees</small>
+          </div>
+
+          <div class="form-group" id="manager-group">
+            <label for="manager">Manager(s)</label>
+            <select name="manager" id="manager" class="form-control select2-multiple" multiple="multiple">
+              <!-- Filled dynamically by JS -->
+            </select>
+            <small class="form-text text-muted">Leave empty to select all managers</small>
+          </div>
+
+          <div class="form-group">
+            <label for="month">Month</label>
+            <select name="month" class="form-control">
+              {% for num, name in months %}
+              <option value="{{ num }}" {% if num == current_month %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="year">Year</label>
+            <select name="year" class="form-control">
+              {% for y in years %}
+              <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="card-footer">
+          <button type="submit" name="generate_html" class="btn btn-info">Generate Report</button>
+          <button type="submit" name="generate_pdf" class="btn btn-danger">Generate PDF</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block custom_js %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      // Initialize Select2
+      $('.select2-multiple').select2({
+          placeholder: "-- Select Employee(s) --",
+          allowClear: true
+      });
+  
+      // Department change handler
+      $('#department').change(function() {
+          const deptId = $(this).val();
+          
+          if (deptId && deptId !== 'all') {
+              // Enable both selectors
+              $('#employee').removeClass('disabled-select').prop('disabled', false);
+              $('#manager').removeClass('disabled-select').prop('disabled', false);
+              
+              // Get department data including user types
+              $.ajax({
+                  url: '{% url "get_department_data" %}',
+                  type: 'POST',
+                  data: {
+                      'department': deptId,
+                      'csrfmiddlewaretoken': '{{ csrf_token }}'
+                  },
+                  dataType: 'json',
+                  success: function(response) {
+                      if (response.status === 'error') {
+                          console.error('Server error:', response.message);
+                          alert('Error loading department data');
+                          return;
+                      }
+  
+                      // Determine if department has employees or managers
+                      const hasEmployees = response.employees && response.employees.length > 0;
+                      const hasManagers = response.managers && response.managers.length > 0;
+  
+                      // Toggle fields based on department content
+                      if (hasEmployees && !hasManagers) {
+                          // Department with only employees (like Python)
+                          $('#employee-group').show();
+                          $('#manager-group').hide();
+                          $('#manager').val(null).trigger('change');
+                      } else if (hasManagers && !hasEmployees) {
+                          // Department with only managers (like HR)
+                          $('#employee-group').hide();
+                          $('#manager-group').show();
+                          $('#employee').val(null).trigger('change');
+                      } else {
+                          // Department with both or neither
+                          $('#employee-group').show();
+                          $('#manager-group').show();
+                      }
+  
+                      // Clear and populate employees if visible
+                      $('#employee').empty().append('<option value="">-- Select --</option>');
+                      if ($('#employee-group').is(':visible')) {
+                          if (hasEmployees) {
+                              response.employees.forEach(emp => {
+                                  $('#employee').append(`<option value="${emp.id}">${emp.name}</option>`);
+                              });
+                          } else {
+                              $('#employee').append('<option value="">No employees available</option>');
+                          }
+                      }
+  
+                      // Clear and populate managers if visible
+                      $('#manager').empty().append('<option value="">-- Select --</option>');
+                      if ($('#manager-group').is(':visible')) {
+                          if (hasManagers) {
+                              response.managers.forEach(mgr => {
+                                  $('#manager').append(`<option value="${mgr.id}">${mgr.name}</option>`);
+                              });
+                          } else {
+                              $('#manager').append('<option value="">No managers available</option>');
+                          }
+                      }
+                  },
+                  error: function(xhr, status, error) {
+                      console.error('AJAX error:', status, error);
+                      alert('Failed to load department data. Please try again.');
+                      $('#employee, #manager').empty().append('<option value="">Error loading data</option>');
+                  }
+              });
+          } else if (deptId === 'all') {
+              // Handle "All Departments" case - disable both selectors
+              $('#employee-group').show();
+              $('#manager-group').show();
+              $('#employee').empty().append('<option value="all" selected>All Employees</option>');
+              $('#manager').empty().append('<option value="all" selected>All Managers</option>');
+              
+              // Disable both selectors
+              $('#employee').addClass('disabled-select').prop('disabled', true).trigger('change');
+              $('#manager').addClass('disabled-select').prop('disabled', true).trigger('change');
+          } else {
+              // No department selected - clear both and enable
+              $('#employee-group').show();
+              $('#manager-group').show();
+              $('#employee, #manager').empty().append('<option value="">-- Select --</option>');
+              $('#employee').removeClass('disabled-select').prop('disabled', false);
+              $('#manager').removeClass('disabled-select').prop('disabled', false);
+          }
+      });
+  
+      // Form submission validation
+      $('form').submit(function(e) {
+          const department = $('#department').val();
+          const employees = $('#employee').val();
+          const managers = $('#manager').val();
+          const month = $('select[name="month"]').val();
+          const year = $('select[name="year"]').val();
+          
+          // Validate month and year
+          if (!month || !year) {
+              alert('Please select both Month and Year');
+              e.preventDefault();
+              return false;
+          }
+          
+          // For "All Departments", no need to validate specific selections
+          if (department === 'all') {
+              return true;
+          }
+          
+          // Check if at least one visible field has selection
+          const employeeVisible = $('#employee-group').is(':visible');
+          const managerVisible = $('#manager-group').is(':visible');
+          
+          if ((employeeVisible && (!employees || employees.length === 0)) &&
+              (managerVisible && (!managers || managers.length === 0))) {
+              alert('Please select at least one employee or manager');
+              e.preventDefault();
+              return false;
+          }
+          
+          return true;
+      });
+  });
+  </script>
+{% endblock %}

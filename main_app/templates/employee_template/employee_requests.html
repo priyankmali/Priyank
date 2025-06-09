@@ -1,0 +1,628 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block custom_css %}
+    <style>
+        .card-dark {
+            border-color: #343a40;
+        }
+        .card-dark .card-header {
+            border-bottom-color: #454d55;
+        }
+        .badge {
+            font-size: 85%;
+            font-weight: 500;
+            padding: 0.35em 0.5em;
+        }
+        .table th {
+            border-top: none;
+            background-color: #f8f9fa;
+        }
+        .img-circle {
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .modal-content {
+            border: none;
+            border-radius: 0.5rem;
+        }
+        .modal-header {
+            border-radius: 0.5rem 0.5rem 0 0 !important;
+        }
+        .pagination {
+            font-size: 0.9rem;
+        }
+        .page-item.active .page-link {
+            background-color: #4e73df;
+            border-color: #4e73df;
+            width: 36px;
+        }
+        .page-link {
+            color: #4e73df;
+        }
+        .card-footer {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        .notification-text {
+            font-weight: normal !important;
+        }
+        .badge-pending, .badge-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-approved, .badge-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-rejected, .badge-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .badge-in-progress, .badge-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .unread-dot {
+            font-size: 8px;
+            margin-left: 5px;
+            margin-top: 15px;
+            color: #dc3545;
+        }
+        @media (max-width: 768px) {
+            .form-inline .form-group {
+                display: block;
+                margin-bottom: 0.5rem;
+                width: 100%;
+            }
+        }
+    </style>
+{% endblock custom_css %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Leave Requests Card -->
+        <div class="card card-dark mb-4 shadow-lg">
+            <div class="card-header bg-gradient-dark">
+                <h3 class="card-title">
+                    <i class="fas fa-calendar-alt mr-2"></i>
+                    <strong>Leave Requests</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ leave_requests.count }} Total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="leave-requests-container">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 15%">Date</th>
+                                <th style="width: 45%">Message</th>
+                                <th style="width: 15%">Status</th>
+                                <th style="width: 15%">Submitted</th>
+                                <th style="width: 10%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leave-requests-body">
+                            {% for report in leave_requests %}
+                                <tr class="notification-text" data-notification-id="{{ report.id }}">
+                                    <td>{{ report.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="message-preview">
+                                            {{ report.message|truncatechars:100 }}
+                                            {% if report.message|length > 100 %}
+                                            <a href="#" data-toggle="modal" data-target="#leaveModal-{{ report.id }}" onclick="markNotificationRead({{ report.id }}, 'leave-notification')">Read more</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if report.status == 0 %}
+                                            <span class="badge badge-pending">Pending</span>
+                                        {% elif report.status == 1 %}
+                                            <span class="badge badge-approved">Approved</span>
+                                        {% else %}
+                                            <span class="badge badge-rejected">Rejected</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ report.created_at|timesince }} ago</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-info" data-toggle="modal" 
+                                                    data-target="#leaveModal-{{ report.id }}" title="View Details" onclick="markNotificationRead({{ report.id }}, 'leave-notification')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if report.id in unread_notifications %}
+                                                <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Leave Request Modal -->
+                                <div class="modal fade leave-modal" id="leaveModal-{{ report.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-dark text-white">
+                                                <p class="modal-title">Leave Request Details</p>
+                                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">×</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-8">
+                                                        <span class="badge badge-primary">
+                                                            {{ report.created_at|date:"M d, Y H:i" }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Full Message:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ report.message }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                                    <i class="fas fa-times mr-1"></i> Close
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                        No leave requests found
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Leave Requests Pagination -->
+            {% if leave_requests.has_other_pages %}
+                <div class="card-footer">
+                    <nav aria-label="Leave requests pagination" id="leave-requests-pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if leave_requests.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?leave_page={{ leave_requests.previous_page_number }}" data-page="{{ leave_requests.previous_page_number }}" data-section="leave" aria-label="Previous">
+                                        <span aria-hidden="true">«</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% for num in leave_requests.paginator.page_range %}
+                                {% if leave_requests.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > leave_requests.number|add:'-3' and num < leave_requests.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?leave_page={{ num }}" data-page="{{ num }}" data-section="leave">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if leave_requests.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?leave_page={{ leave_requests.next_page_number }}" data-page="{{ leave_requests.next_page_number }}" data-section="leave" aria-label="Next">
+                                        <span aria-hidden="true">»</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing page {{ leave_requests.number }} of {{ leave_requests.paginator.num_pages }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Asset Claims Card -->
+        <div class="card card-dark mb-4 shadow-lg">
+            <div class="card-header bg-gradient-dark">
+                <h3 class="card-title">
+                    <i class="fas fa-laptop mr-2"></i>
+                    <strong>Asset Claims</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ asset_claims.count }} Total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="asset-claims-container">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 20%">Asset</th>
+                                <th style="width: 20%">Serial No</th>
+                                <th style="width: 20%">Manager</th>
+                                <th style="width: 15%">Status</th>
+                                <th style="width: 15%">Requested</th>
+                                <th style="width: 10%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="asset-claims-body">
+                            {% for claim in asset_claims %}
+                                <tr class="notification-text" data-notification-id="{{ claim.id }}">
+                                    <td>{{ claim.asset.asset_name }}</td>
+                                    <td><code>{{ claim.asset.asset_serial_number }}</code></td>
+                                    <td>{{ claim.manager.get_full_name|default:claim.manager.username }}</td>
+                                    <td>
+                                        {% if claim.status == "Pending" %}
+                                            <span class="badge badge-pending">Pending</span>
+                                        {% elif claim.status == "Approved" %}
+                                            <span class="badge badge-approved">Approved</span>
+                                        {% elif claim.status == "Rejected" %}
+                                            <span class="badge badge-rejected">Rejected</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ claim.timestamp|date:"M j, Y" }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-info" data-toggle="modal" 
+                                                    data-target="#assetClaimModal-{{ claim.id }}" title="View Details" onclick="markNotificationRead({{ claim.id }}, 'asset-claim')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if claim.id in unread_notifications %}
+                                                <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Asset Claim Modal -->
+                                <div class="modal fade leave-modal" id="assetClaimModal-{{ claim.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-dark text-white">
+                                                <p class="modal-title">Asset Claim Details</p>
+                                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">×</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-8">
+                                                        <span class="badge badge-primary">
+                                                            {{ claim.timestamp|date:"M d, Y H:i" }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Asset:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ claim.asset.asset_name }}
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Serial Number:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ claim.asset.asset_serial_number }}
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Manager:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ claim.manager.get_full_name|default:claim.manager.username }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                                    <i class="fas fa-times mr-1"></i> Close
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="fas fa-box-open fa-2x mb-2"></i><br>
+                                        No asset claims found
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Asset Claims Pagination -->
+            {% if asset_claims.has_other_pages %}
+                <div class="card-footer">
+                    <nav aria-label="Asset claims pagination" id="asset-claims-pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if asset_claims.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?asset_page={{ asset_claims.previous_page_number }}" data-page="{{ asset_claims.previous_page_number }}" data-section="asset" aria-label="Previous">
+                                        <span aria-hidden="true">«</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% for num in asset_claims.paginator.page_range %}
+                                {% if asset_claims.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > asset_claims.number|add:'-3' and num < asset_claims.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?asset_page={{ num }}" data-page="{{ num }}" data-section="asset">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if asset_claims.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?asset_page={{ asset_claims.next_page_number }}" data-page="{{ asset_claims.next_page_number }}" data-section="asset" aria-label="Next">
+                                        <span aria-hidden="true">»</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing page {{ asset_claims.number }} of {{ asset_claims.paginator.num_pages }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Asset Issues Card -->
+        <div class="card card-dark mb-4 shadow-lg">
+            <div class="card-header bg-gradient-dark">
+                <h3 class="card-title">
+                    <i class="fas fa-laptop mr-2"></i>
+                    <strong>Asset Issues</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ asset_issues.count }} Total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" id="asset-issues-container">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 15%">Asset</th>
+                                <th style="width: 15%">Issue Type</th>
+                                <th style="width: 15%">Status</th>
+                                <th style="width: 15%">Reported Date</th>
+                                <th style="width: 15%">Review Date</th>
+                                <th style="width: 25%">Review</th>
+                                <th style="width: 10%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="asset-issues-body">
+                            {% for issue in asset_issues %}
+                                <tr class="notification-text" data-notification-id="{{ issue.id }}">
+                                    <td>{{ issue.asset.asset_name }}</td>
+                                    <td>{{ issue.get_issue_type_display }}</td>
+                                    <td>
+                                        {% if issue.status == "pending" %}
+                                            <span class="badge badge-pending">Pending</span>
+                                        {% elif issue.status == "in_progress" %}
+                                            <span class="badge badge-in-progress">In Progress</span>
+                                        {% else %}
+                                            <span class="badge badge-approved">Resolved</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ issue.reported_date|date:"M j, Y" }}</td>
+                                    <td>
+                                        {% if issue.resolved_date %}
+                                            {{ issue.resolved_date|date:"M j, Y" }}
+                                        {% else %}
+                                            <span class="text-danger border-1 border-bottom border-top border-danger">Not Resolved</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="message-preview">
+                                            {{ issue.notes|truncatechars:50 }}
+                                            {% if issue.notes|length > 50 %}
+                                            <a href="#" data-toggle="modal" data-target="#assetIssueModal-{{ issue.id }}" onclick="markNotificationRead({{ issue.id }}, 'asset-issue')">Read more</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-info" data-toggle="modal" 
+                                                    data-target="#assetIssueModal-{{ issue.id }}" title="View Details" onclick="markNotificationRead({{ issue.id }}, 'asset-issue')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if issue.id in unread_notifications %}
+                                                <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Asset Issue Modal -->
+                                <div class="modal fade leave-modal" id="assetIssueModal-{{ issue.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-dark text-white">
+                                                <p class="modal-title">Asset Issue Details</p>
+                                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">×</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-8">
+                                                        <span class="badge badge-primary">
+                                                            {{ issue.reported_date|date:"M d, Y H:i" }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Asset:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ issue.asset.asset_name }}
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Issue Type:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ issue.get_issue_type_display }}
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Notes:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ issue.notes }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                                    <i class="fas fa-times mr-1"></i> Close
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        <i class="fas fa-box-open fa-2x mb-2"></i><br>
+                                        No asset issues found
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Asset Issues Pagination -->
+            {% if asset_issues.has_other_pages %}
+                <div class="card-footer">
+                    <nav aria-label="Asset issues pagination" id="asset-issues-pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if asset_issues.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?issue_page={{ asset_issues.previous_page_number }}" data-page="{{ asset_issues.previous_page_number }}" data-section="issue" aria-label="Previous">
+                                        <span aria-hidden="true">«</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% for num in asset_issues.paginator.page_range %}
+                                {% if asset_issues.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > asset_issues.number|add:'-3' and num < asset_issues.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?issue_page={{ num }}" data-page="{{ num }}" data-section="issue">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if asset_issues.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?issue_page={{ asset_issues.next_page_number }}" data-page="{{ asset_issues.next_page_number }}" data-section="issue" aria-label="Next">
+                                        <span aria-hidden="true">»</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing page {{ asset_issues.number }} of {{ asset_issues.paginator.num_pages }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block custom_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle pagination clicks for all sections
+        document.querySelectorAll('.pagination a.page-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = this.dataset.page;
+                const section = this.dataset.section;
+                let url = '';
+                let containerId = '';
+                let bodyId = '';
+                let paginationId = '';
+
+                if (section === 'leave') {
+                    url = `?leave_page=${page}`;
+                    containerId = '#leave-requests-container';
+                    bodyId = '#leave-requests-body';
+                    paginationId = '#leave-requests-pagination';
+                } else if (section === 'asset') {
+                    url = `?asset_page=${page}`;
+                    containerId = '#asset-claims-container';
+                    bodyId = '#asset-claims-body';
+                    paginationId = '#asset-claims-pagination';
+                } else if (section === 'issue') {
+                    url = `?issue_page=${page}`;
+                    containerId = '#asset-issues-container';
+                    bodyId = '#asset-issues-body';
+                    paginationId = '#asset-issues-pagination';
+                }
+
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    document.querySelector(bodyId).innerHTML = doc.querySelector(bodyId).innerHTML;
+                    const newPagination = doc.querySelector(paginationId);
+                    const paginationContainer = document.querySelector(paginationId);
+                    if (newPagination && paginationContainer) {
+                        paginationContainer.innerHTML = newPagination.innerHTML;
+                    } else if (paginationContainer) {
+                        paginationContainer.innerHTML = '';
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        });
+
+        // Mark notification as read
+        function getCSRFToken() {
+            const name = 'csrftoken';
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith(name + '='))
+                ?.split('=')[1];
+            return cookieValue;
+        }
+
+        window.markNotificationRead = function(notificationId, notificationType) {
+            const csrftoken = getCSRFToken();
+
+            fetch('{% url "mark_notification_read" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    'notification_id': notificationId,
+                    'notification_type': notificationType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const unreadDot = document.querySelector(`tr[data-notification-id="${notificationId}"] .unread-dot`);
+                    if (unreadDot) {
+                        unreadDot.style.display = 'none';
+                    }
+                } else {
+                    console.error('Failed to mark notification as read:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        };
+
+        // Reload page when any modal with class `leave-modal` is closed
+        $('.leave-modal').on('hidden.bs.modal', function () {
+            location.reload();
+        });
+    });
+</script>
+{% endblock custom_js %}

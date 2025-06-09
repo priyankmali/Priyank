@@ -1,0 +1,450 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}Daily Schedule{% endblock %}
+
+{% block custom_css %}
+<style>
+    .schedule-container { max-width: 1000px; margin: 0 auto; }
+    .section-card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 25px; }
+    .task-item { display: grid; grid-template-columns: 1fr 80px 32px; gap: 10px; margin-bottom: 10px; align-items: center; }
+    .task-input, .time-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; transition: all 0.3s; font-size: 14px; }
+    .task-input { width: 100%; }
+    .time-input { width: 100%; }
+    .task-input:focus, .time-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1); }
+    .task-btn { border: none; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; background-color: #e0e7ff; color: #3730a3; }
+    .task-btn.delete-btn { background-color: #fee2e2; color: #dc2626; }
+    .add-btn { background-color: #4f46e5; color: white; width: 100%; padding: 10px; margin-top: 15px; }
+    .save-btn { background-color: #10b981; color: white; width: 100%; padding: 10px; margin-top: 20px; }
+    .cancel-btn { background-color: #6b7280; color: white; width: 100%; padding: 10px; margin-top: 10px; }
+    .time-estimate { color: #6b7280; font-size: 0.9em; }
+    .justification-box { display: none; margin-top: 20px; padding: 15px; background: #fff8e1; border-radius: 6px; }
+    .time-summary { margin-top: 15px; font-weight: bold; font-size: 15px; }
+    .error { color: #d32f2f; }
+    .time-unit-dropdown { 
+        position: absolute; 
+        background: white; 
+        border: 1px solid #ddd; 
+        border-radius: 4px; 
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+        z-index: 1000; 
+        display: none; 
+        width: 100%;
+    }
+    .time-unit-dropdown div { 
+        padding: 8px 10px; 
+        cursor: pointer; 
+        font-size: 14px; 
+    }
+    .time-unit-dropdown div:hover { 
+        background-color: #f0f4ff; 
+    }
+    .history-item { 
+        border-left: 4px solid #4f46e5; 
+        padding: 15px 20px; 
+        margin-bottom: 20px; 
+        background: #f9fafb; 
+        border-radius: 0 8px 8px 0;
+        position: relative;
+    }
+    .history-date { 
+        font-weight: 600; 
+        color: #1a365d; 
+        margin-bottom: 10px;
+        font-size: 16px;
+        text-transform: uppercase;
+    }
+    .history-project { 
+        font-weight: 500; 
+        color: #1a365d; 
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+    .history-tasks { 
+        margin-left: 15px; 
+        margin-bottom: 10px;
+    }
+    .history-task { 
+        margin-bottom: 5px; 
+        color: #4b5563; 
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .history-task::before {
+        content: '•';
+        color: #4b5563;
+        font-size: 16px;
+    }
+    .history-total { 
+        font-weight: 600; 
+        color: #10b981; 
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    .history-justification {
+        font-size: 14px;
+        color: #4b5563;
+    }
+    .history-justification-label {
+        font-weight: 500;
+        color: #1a365d;
+    }
+    .edit-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background-color: #e0e7ff;
+        color: #3730a3;
+        border: none;
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+    }
+    .empty-history {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6b7280;
+    }
+    .empty-history-icon {
+        font-size: 48px;
+        color: #d1d5db;
+        margin-bottom: 15px;
+    }
+    .empty-history-text {
+        font-size: 16px;
+    }
+    .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1a365d;
+        margin-bottom: 20px;
+    }
+    .date-input:disabled {
+        background-color: #f3f4f6;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    .edit-window-message {
+        color: #dc2626;
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-8">
+    <div class="schedule-container">
+        <!-- Current Schedule Form (only shown if show_form is True) -->
+        {% if show_form %}
+        <div class="section-card">
+            <h3 class="section-title">Today's Schedule - {{ today|date:"F j, Y" }}</h3>
+            {% if schedule and not allow_edit %}
+                <div class="edit-window-message">
+                    The edit window (10 seconds after creation) has expired. You can no longer edit this schedule.
+                </div>
+            {% endif %}
+
+            <div class="mb-4">
+                <input type="text" id="project-input" class="w-100 p-2 border rounded-md" 
+                       placeholder="Project name" value="{{ schedule.project|default_if_none:'' }}">
+            </div>
+
+            <div class="task-input-container">
+                <div id="tasks-container">
+                    {% if edit_tasks %}
+                        {% for task in edit_tasks %}
+                        <div class="task-item">
+                            <input type="text" class="task-input" placeholder="Task" value="{{ task.description }}">
+                            <div style="position: relative;">
+                                <input type="text" class="time-input" placeholder="Time" value="{{ task.time }}">
+                                <div class="time-unit-dropdown">
+                                    <div data-unit="h">Hours</div>
+                                    <div data-unit="m">Minutes</div>
+                                    <div data-unit="s">Seconds</div>
+                                </div>
+                            </div>
+                            <button type="button" class="task-btn delete-btn">🗑</button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Default empty task item -->
+                        <div class="task-item">
+                            <input type="text" class="task-input" placeholder="Task">
+                            <div style="position: relative;">
+                                <input type="text" class="time-input" placeholder="Time">
+                                <div class="time-unit-dropdown">
+                                    <div data-unit="h">Hours</div>
+                                    <div data-unit="m">Minutes</div>
+                                    <div data-unit="s">Seconds</div>
+                                </div>
+                            </div>
+                            <button type="button" class="task-btn delete-btn">🗑</button>
+                        </div>
+                    {% endif %}
+                </div>
+                <button type="button" id="add-task-btn" class="task-btn add-btn">+ Add Task</button>
+            </div>
+            
+            <div id="time-summary" class="time-summary">Total scheduled time: 0h 0m</div>
+            
+            <div id="justification-box" class="justification-box">
+                <h4>Justification Required</h4>
+                <p>Total scheduled time: <span id="total-time-display">0</span> hours (8 hours required)</p>
+                <textarea id="justification-input" class="w-100 p-2 border rounded-md" rows="3"
+                          placeholder="Please provide justification for not scheduling 8 hours">{{ schedule.justification|default_if_none:'' }}</textarea>
+            </div>
+            
+            <button id="save-schedule-btn" class="save-btn">
+                {% if schedule %}Update Schedule{% else %}Save Schedule{% endif %}
+            </button>
+            {% if request.GET.edit %}
+                <button type="button" id="cancel-edit-btn" class="cancel-btn">Cancel Edit</button>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Display existing schedule if not showing form -->
+        {% if schedule and not show_form %}
+        <div class="section-card">
+            <h3 class="section-title">Today's Schedule - {{ today|date:"F j, Y" }}</h3>
+            <div class="history-item">
+                <div class="history-date">{{ schedule.date|date:"M j, Y" }}</div>
+                {% if schedule.project %}
+                    <div class="history-project">Project: {{ schedule.project }}</div>
+                {% endif %}
+                <div class="history-tasks">
+                    {% for task in schedule.task_description.splitlines %}
+                        <div class="history-task">{{ task }}</div>
+                    {% endfor %}
+                </div>
+                <div class="history-total">
+                    Total: {{ schedule.total_hours|floatformat:2 }} hours
+                </div>
+                {% if schedule.justification %}
+                    <div class="history-justification">
+                        <span class="history-justification-label">Justification:</span> {{ schedule.justification }}
+                    </div>
+                {% endif %}
+                {% if allow_edit %}
+                    <button class="edit-btn" onclick="location.href='{% url 'daily_schedule' %}?edit=true'">✎</button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<form id="schedule-form" method="post" action="{% url 'daily_schedule' %}">
+    {% csrf_token %}
+    <input type="hidden" name="task_description" id="task-description-input">
+    <input type="hidden" name="project" id="form-project-input">
+    <input type="hidden" name="justification" id="form-justification-input">
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('tasks-container');
+    const addBtn = document.getElementById('add-task-btn');
+    const saveBtn = document.getElementById('save-schedule-btn');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const justificationBox = document.getElementById('justification-box');
+    const timeSummary = document.getElementById('time-summary');
+    const projectInput = document.getElementById('project-input');
+    const justificationInput = document.getElementById('justification-input');
+    let totalMinutes = 0;
+
+    // Initially hide justification box
+    justificationBox.style.display = 'none';
+
+    // Setup time input with dropdown
+    function setupTimeInput(input) {
+        const dropdown = input.parentElement.querySelector('.time-unit-dropdown');
+        
+        input.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/[^0-9hms]/g, '');
+            if (value && /^\d+$/.test(value)) {
+                dropdown.style.display = 'block';
+                const rect = input.getBoundingClientRect();
+                dropdown.style.top = `${rect.bottom - rect.top + 5}px`;
+                dropdown.style.left = '0';
+            } else {
+                dropdown.style.display = 'none';
+            }
+            updateTimeSummary();
+        });
+
+        dropdown.querySelectorAll('div').forEach(option => {
+            option.addEventListener('click', () => {
+                const unit = option.getAttribute('data-unit');
+                input.value = input.value.replace(/[^0-9]/g, '') + unit;
+                dropdown.style.display = 'none';
+                updateTimeSummary();
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+    }
+
+    document.querySelectorAll('.time-input').forEach(input => {
+        setupTimeInput(input);
+    });
+
+    function parseTime(timeStr) {
+        timeStr = timeStr.toLowerCase().trim();
+        let hours = 0, minutes = 0, seconds = 0;
+        try {
+            if (timeStr.includes('h')) {
+                hours = parseFloat(timeStr.split('h')[0]) * 60;
+                timeStr = timeStr.split('h')[1] || '';
+            }
+            if (timeStr.includes('m')) {
+                minutes = parseFloat(timeStr.split('m')[0]);
+                timeStr = timeStr.split('m')[1] || '';
+            }
+            if (timeStr.includes('s')) {
+                seconds = parseFloat(timeStr.split('s')[0]) / 60;
+            }
+            return hours + minutes + seconds;
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    function updateTimeSummary() {
+        totalMinutes = 0;
+        document.querySelectorAll('.task-item').forEach(item => {
+            const timeInput = item.querySelector('.time-input').value.trim();
+            if (timeInput) {
+                totalMinutes += parseTime(timeInput) || 0;
+            }
+        });
+        
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = Math.round(totalMinutes % 60);
+        timeSummary.textContent = `Total scheduled time: ${hours}h ${minutes}m`;
+        document.getElementById('total-time-display').textContent = (totalMinutes / 60).toFixed(2);
+        
+        if (totalMinutes < 480) {
+            timeSummary.innerHTML += ' <span class="error">(8 hours required)</span>';
+            justificationBox.style.display = 'block';
+        } else {
+            timeSummary.innerHTML = timeSummary.textContent;
+            justificationBox.style.display = 'none';
+        }
+    }
+
+    function clearForm() {
+        container.innerHTML = `
+            <div class="task-item">
+                <input type="text" class="task-input" placeholder="Task">
+                <div style="position: relative;">
+                    <input type="text" class="time-input" placeholder="Time">
+                    <div class="time-unit-dropdown">
+                        <div data-unit="h">Hours</div>
+                        <div data-unit="m">Minutes</div>
+                        <div data-unit="s">Seconds</div>
+                    </div>
+                </div>
+                <button type="button" class="task-btn delete-btn">🗑</button>
+            </div>
+        `;
+        projectInput.value = '';
+        justificationInput.value = '';
+        justificationBox.style.display = 'none';
+        document.querySelectorAll('.time-input').forEach(input => {
+            setupTimeInput(input);
+        });
+        updateTimeSummary();
+    }
+
+    addBtn.addEventListener('click', () => {
+        const div = document.createElement('div');
+        div.className = 'task-item';
+        div.innerHTML = `
+            <input type="text" class="task-input" placeholder="Task">
+            <div style="position: relative;">
+                <input type="text" class="time-input" placeholder="Time">
+                <div class="time-unit-dropdown">
+                    <div data-unit="h">Hours</div>
+                    <div data-unit="m">Minutes</div>
+                    <div data-unit="s">Seconds</div>
+                </div>
+            </div>
+            <button type="button" class="task-btn delete-btn">🗑</button>
+        `;
+        container.appendChild(div);
+        setupTimeInput(div.querySelector('.time-input'));
+        updateTimeSummary();
+    });
+
+    container.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-btn')) {
+            e.target.closest('.task-item').remove();
+            updateTimeSummary();
+        }
+    });
+
+    saveBtn.addEventListener('click', () => {
+        const tasks = [];
+        let isValid = true;
+
+        document.querySelectorAll('.task-item').forEach(item => {
+            const task = item.querySelector('.task-input').value.trim();
+            const time = item.querySelector('.time-input').value.trim();
+            
+            if (!task || !time) {
+                isValid = false;
+                alert('Please fill both task and time fields');
+                return;
+            }
+            
+            if (!time.match(/^\d+[hms]$/)) {
+                isValid = false;
+                alert('Invalid time format. Use format like "2h", "30m", or "45s"');
+                return;
+            }
+            
+            tasks.push(`${task}|${time}`);
+        });
+
+        if (isValid && tasks.length > 0) {
+            totalMinutes = 0;
+            tasks.forEach(t => {
+                const timePart = t.split('|')[1].trim().toLowerCase();
+                totalMinutes += parseTime(timePart);
+            });
+
+            document.getElementById('task-description-input').value = tasks.join('\n');
+            document.getElementById('form-project-input').value = projectInput.value.trim();
+            document.getElementById('form-justification-input').value = justificationInput.value.trim();
+
+            // Handle justification logic
+            if (totalMinutes < 480 && !justificationInput.value.trim()) {
+                alert('Please provide justification for scheduling less than 8 hours');
+                return;
+            }
+
+            // Submit the form
+            document.getElementById('schedule-form').submit();
+        }
+    });
+
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', () => {
+            window.location.href = '{% url 'daily_schedule' %}';
+        });
+    }
+
+    // Initial update
+    updateTimeSummary();
+});
+</script>
+{% endblock %}

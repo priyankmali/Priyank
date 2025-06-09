@@ -1,0 +1,289 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %} {{page_title}} {% endblock page_title %}
+
+{% block content %}
+    <section class="content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-12">
+                    <!-- Claim History -->
+                    <div class="card card-dark mt-2">
+                        <div class="card-header">
+                            <h3 class="card-title">Not Assigned Assets</h3>
+                        </div>
+                        <div class="table-responsive" id="not-assigned-assets-container">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>Asset</th>
+                                        <th>Serial No</th>
+                                        <th>Brand</th>  
+                                        {% if request.user.user_type == '3' %}
+                                            <th>Actions</th>
+                                        {% else %}
+                                            <th>View</th>
+                                        {% endif %}
+                                    </tr>
+                                </thead>
+                                <tbody id="not-assigned-assets-body">
+                                    {% for asset in assets %}
+                                        <tr>
+                                            <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                                            <td>{{ asset.asset_name }}</td>
+                                            <td>{{ asset.asset_serial_number }}</td>
+                                            <td>{{ asset.asset_brand }}</td>
+                                            {% if request.user.user_type == '3' %}
+                                                <td>
+                                                    {% if asset.id in pending_requests %}
+                                                        <button type="button" class="btn btn-success btn-sm" disabled>
+                                                            Requested
+                                                        </button>
+                                                    {% else %}
+                                                    <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modal-{{ asset.id }}">
+                                                        <i class="fas fa-paper-plane mr-1"></i> Request Asset
+                                                    </button>
+                                                    <!-- Modal -->
+                                                    <div class="modal fade" id="modal-{{ asset.id }}" tabindex="-1" role="dialog" aria-labelledby="modalLabel-{{ asset.id }}" aria-hidden="true">
+                                                        <div class="modal-dialog modal-lg" role="document">
+                                                            <div class="modal-content shadow-lg">
+                                                                <div class="modal-header bg-gradient-primary text-white">
+                                                                    <h5 class="modal-title" id="modalLabel-{{ asset.id }}">
+                                                                        <i class="fas fa-hand-holding mr-2"></i>Request Asset
+                                                                    </h5>
+                                                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                                        <span aria-hidden="true">×</span>
+                                                                    </button>
+                                                                </div>
+                                                                <form method="post" action="{% url 'asset_app:asset-claim' %}">
+                                                                    {% csrf_token %}
+                                                                    <input type="hidden" name="asset_id" value="{{ asset.id }}">
+                                                                    <div class="modal-body">
+                                                                        <div class="row">
+                                                                            <div class="col-md-6 border-right">
+                                                                                <div class="asset-details-card p-3 mb-4 bg-light rounded">
+                                                                                    <h6 class="text-primary mb-3"><i class="fas fa-info-circle mr-2"></i>Asset Details</h6>
+                                                                                    {% if asset.asset_image and asset.asset_image.url %}
+                                                                                    <div class="asset-image-container text-center mb-3">
+                                                                                        <img src="{{ asset.asset_image.url }}" class="img-fluid rounded border" alt="Asset Image" style="max-height: 160px;">
+                                                                                    </div>
+                                                                                    {% else %}
+                                                                                    <div class="asset-image-container text-center mb-3">
+                                                                                        <div class="no-image-placeholder bg-light rounded border p-4 text-muted">
+                                                                                            <i class="fas fa-image fa-3x mb-2"></i>
+                                                                                            <p class="small">No image available</p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    {% endif %}
+                                                                                    <div class="asset-info">
+                                                                                        <p class="mb-2"><strong><i class="fas fa-tag mr-2"></i>Name:</strong> {{ asset.asset_name }}</p>
+                                                                                        <p class="mb-2"><strong><i class="fas fa-barcode mr-2"></i>Serial No:</strong> {{ asset.asset_serial_number }}</p>
+                                                                                        <p class="mb-2"><strong><i class="fas fa-industry mr-2"></i>Brand:</strong> {{ asset.asset_brand }}</p>
+                                                                                        {% if asset.os_version %}
+                                                                                        <p class="mb-2"><strong><i class="fas fa-code-branch mr-2"></i>OS Version:</strong> {{ asset.os_version }}</p>
+                                                                                        {% endif %}
+                                                                                        {% if asset.ip_address %}
+                                                                                        <p class="mb-3"><strong><i class="fas fa-network-wired mr-2"></i>IP Address:</strong> {{ asset.ip_address }}</p>
+                                                                                        {% endif %}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div class="col-md-6">
+                                                                                <div class="form-group">
+                                                                                    {% if asset.qr_code and asset.qr_code.url %}
+                                                                                    <div class="qr-code-container text-center">
+                                                                                        <img src="{{ asset.qr_code.url }}" class="img-thumbnail" alt="QR Code" style="max-width: 160px;">
+                                                                                        <p class="small text-muted mt-1">Scan to verify asset</p>
+                                                                                    </div>
+                                                                                    {% endif %}
+                                                                                    <label for="custom-message-{{ asset.id }}" class="font-weight-bold text-primary">
+                                                                                        <i class="fas fa-comment-dots mr-2"></i>Request Message
+                                                                                    </label>
+                                                                                    <textarea class="form-control" id="custom-message-{{ asset.id }}" 
+                                                                                            name="message" placeholder="Please explain why you need this asset..." 
+                                                                                            rows="5" style="resize: none;" required></textarea>
+                                                                                    <small class="form-text text-muted">This message will be sent to the asset manager ({{ asset.manager.get_full_name|default:asset.manager.username }}).</small>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer bg-light">
+                                                                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">
+                                                                            <i class="fas fa-times mr-1"></i> Cancel
+                                                                        </button>
+                                                                        <button type="submit" class="btn btn-success">
+                                                                            <i class="fas fa-paper-plane mr-1"></i> Send Request
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                            {% else %}
+                                                <td>
+                                                    <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modal-{{ asset.id }}">
+                                                        <i class="fas fa-eye mr-1"></i> 
+                                                    </button>
+                                                    <div class="modal fade" id="modal-{{ asset.id }}" tabindex="-1" role="dialog" aria-labelledby="modalLabel-{{ asset.id }}" aria-hidden="true">
+                                                        <div class="modal-dialog modal-lg" role="document">
+                                                            <div class="modal-content shadow-lg">
+                                                                <div class="modal-header bg-gradient-primary text-white">
+                                                                    <h5 class="modal-title" id="modalLabel-{{ asset.id }}">
+                                                                        <i class="fas fa-hand-holding mr-2"></i>Asset Details
+                                                                    </h5>
+                                                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                                        <span aria-hidden="true">×</span>
+                                                                    </button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    <div class="row">
+                                                                        <div class="col-md-6 border-right">
+                                                                            <div class="asset-details-card p-3 mb-4 bg-light rounded">
+                                                                                <h6 class="text-primary mb-3"><i class="fas fa-info-circle mr-2"></i>Asset Details</h6>
+                                                                                {% if asset.asset_image and asset.asset_image.url %}
+                                                                                <div class="asset-image-container text-center mb-3">
+                                                                                    <img src="{{ asset.asset_image.url }}" class="img-fluid rounded border" alt="Asset Image" style="max-height: 160px;">
+                                                                                </div>
+                                                                                {% else %}
+                                                                                <div class="asset-image-container text-center mb-3">
+                                                                                    <div class="no-image-placeholder bg-light rounded border p-4 text-muted">
+                                                                                        <i class="fas fa-image fa-3x mb-2"></i>
+                                                                                        <p class="small">No image available</p>
+                                                                                    </div>
+                                                                                </div>
+                                                                                {% endif %}
+                                                                                <div class="asset-info">
+                                                                                    <p class="mb-2"><strong><i class="fas fa-tag mr-2"></i>Name:</strong> {{ asset.asset_name }}</p>
+                                                                                    <p class="mb-2"><strong><i class="fas fa-barcode mr-2"></i>Serial No:</strong> {{ asset.asset_serial_number }}</p>
+                                                                                    <p class="mb-2"><strong><i class="fas fa-industry mr-2"></i>Brand:</strong> {{ asset.asset_brand }}</p>
+                                                                                    {% if asset.os_version %}
+                                                                                    <p class="mb-2"><strong><i class="fas fa-code-branch mr-2"></i>OS Version:</strong> {{ asset.os_version }}</p>
+                                                                                    {% endif %}
+                                                                                    {% if asset.ip_address %}
+                                                                                    <p class="mb-3"><strong><i class="fas fa-network-wired mr-2"></i>IP Address:</strong> {{ asset.ip_address }}</p>
+                                                                                    {% endif %}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            {% endif %}
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="7" class="text-center">No unclaimed assets available.</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% if page_obj.has_other_pages %}
+                            <nav aria-label="Not assigned assets pagination" id="not-assigned-assets-pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                    
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}" data-page="{{ page_obj.previous_page_number }}" data-section="asset" aria-label="Previous">
+                                            <span aria-hidden="true">«</span>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ num }}" data-page="{{ num }}" data-section="asset">{{ num }}</a></li>
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}" data-page="{{ page_obj.next_page_number }}" data-section="asset" aria-label="Next">
+                                            <span aria-hidden="true">»</span>
+                                        </a>
+                                    </li>
+                                   
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock content %}
+
+{% block custom_js %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle pagination clicks
+        document.querySelectorAll('#not-assigned-assets-pagination a.page-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = this.dataset.page;
+                const url = `?page=${page}`;
+                const containerId = '#not-assigned-assets-container';
+                const bodyId = '#not-assigned-assets-body';
+                const paginationId = '#not-assigned-assets-pagination';
+
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    // Update table body
+                    const newBody = doc.querySelector(bodyId);
+                    document.querySelector(bodyId).innerHTML = newBody.innerHTML;
+                    
+                    // Update pagination
+                    const newPagination = doc.querySelector(paginationId);
+                    const paginationContainer = document.querySelector(paginationId);
+                    if (newPagination && paginationContainer) {
+                        paginationContainer.innerHTML = newPagination.innerHTML;
+                    } else if (paginationContainer) {
+                        paginationContainer.innerHTML = '';
+                    }
+                    
+                    // Re-attach event listeners to new pagination links
+                    document.querySelectorAll(`${paginationId} a.page-link`).forEach(newLink => {
+                        newLink.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const page = this.dataset.page;
+                            fetch(`?page=${page}`, {
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            })
+                            .then(response => response.text())
+                            .then(html => {
+                                const newDoc = parser.parseFromString(html, 'text/html');
+                                document.querySelector(bodyId).innerHTML = newDoc.querySelector(bodyId).innerHTML;
+                                const newPagination = newDoc.querySelector(paginationId);
+                                if (newPagination) {
+                                    paginationContainer.innerHTML = newPagination.innerHTML;
+                                } else {
+                                    paginationContainer.innerHTML = '';
+                                }
+                            });
+                        });
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        });
+    });
+    </script>
+{% endblock custom_js %}

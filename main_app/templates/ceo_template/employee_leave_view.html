@@ -1,0 +1,217 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0" id="leave-table-container">
+                        <table class="table table-bordered text-nowrap">
+                            <thead>
+                                <tr>
+                                    <th>SN</th>
+                                    <th>Employee</th>
+                                    <th>Division</th>
+                                    <th>Message</th>
+                                    <th>Leave Date</th>
+                                    <th>Submitted On</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in allLeave %}
+                                <tr>
+                                    <td>{{ forloop.counter0|add:allLeave.start_index }}</td>
+                                    <td>{{ leave.employee }}</td>
+                                    <td>{{ leave.employee.division }}</td>
+                                    <td>{{ leave.message }}</td>
+                                    <td data-title="Leave Date">{{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.created_at }}</td>
+                                    <td>
+                                        {% if leave.status == 0 %}
+                                            <button data-toggle="modal" 
+                                                    data-target="#reply_modal" 
+                                                    value="{{ leave.id }}" 
+                                                    class="btn btn-primary reply_open_modal">Reply</button>
+                                        {% elif leave.status == -1 %}
+                                            <span class="badge badge-danger">Rejected</span>
+                                        {% else %}
+                                            <span class="badge badge-success">Approved</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No leave requests found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        {% if allLeave.has_other_pages %}
+                        <div class="mt-3">
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination justify-content-center">
+                                    {% if allLeave.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link pagination-link" 
+                                               href="?page={{ allLeave.previous_page_number }}" 
+                                               data-page="{{ allLeave.previous_page_number }}">«</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link">«</span>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in allLeave.paginator.page_range %}
+                                        {% if allLeave.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > allLeave.number|add:'-3' and num < allLeave.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link pagination-link" 
+                                                   href="?page={{ num }}" 
+                                                   data-page="{{ num }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if allLeave.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link pagination-link" 
+                                               href="?page={{ allLeave.next_page_number }}" 
+                                               data-page="{{ allLeave.next_page_number }}">»</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link">»</span>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Reply Modal -->
+<div class="modal fade" id="reply_modal" tabindex="-1" role="dialog" aria-labelledby="replyModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="replyModalLabel">Reply to Leave Request</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="id">
+                <p>Reply to <strong><span id="reply_name"></span></strong>'s leave request:</p>
+                <select id="reply_leave_status" class="form-control">
+                    <option value="">-- Select --</option>
+                    <option value="1">Approve</option>
+                    <option value="-1">Reject</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button id="reply_btn" class="btn btn-success">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+$(document).ready(function() {
+    // Handle pagination clicks
+    $(document).on('click', '.pagination-link', function(e) {
+        e.preventDefault();
+        var page = $(this).data('page');
+
+        $.ajax({
+            url: "{% url 'view_employee_leave' %}",
+            type: 'GET',
+            data: {
+                page: page
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(html) {
+                // Create a temporary container to parse the full HTML
+                var $temp = $('<div>').html(html);
+                // Extract only the #leave-table-container content
+                var $newContent = $temp.find('#leave-table-container').html();
+                // Update the existing container
+                $('#leave-table-container').html($newContent);
+                // Update browser URL without reloading
+                window.history.pushState({}, '', '?page=' + page);
+            },
+            error: function(xhr, status, error) {
+                console.error('Pagination AJAX failed:', error);
+                alert('Error loading page. Please try again.');
+            }
+        });
+    });
+
+    // Handle browser back/forward buttons
+    window.onpopstate = function(event) {
+        window.location.reload(); // Reload to ensure correct state
+    };
+
+    // Handle reply modal open
+    $(document).on('click', '.reply_open_modal', function() {
+        var id = $(this).val();
+        var name = $(this).closest('tr').find('td:eq(1)').text();
+        $('#reply_name').text(name);
+        $('#id').val(id);
+        $('#reply_leave_status').val(''); // Reset select dropdown
+    });
+
+    // Handle reply submission
+    $(document).on('click', '#reply_btn', function() {
+        var id = $('#id').val();
+        var status = $('#reply_leave_status').val();
+
+        if (status == '1' || status == '-1') {
+            $.ajax({
+                url: "{% url 'view_employee_leave' %}",
+                type: 'POST',
+                data: {
+                    id: id,
+                    status: status,
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response == "True") {
+                        alert("Leave response has been saved.");
+                        location.reload();
+                    } else {
+                        alert("Reply could not be sent.");
+                    }
+                },
+                error: function() {
+                    alert("An error occurred.");
+                }
+            });
+        } else {
+            alert("Please select a valid response.");
+        }
+    });
+});
+</script>
+{% endblock custom_js %}

@@ -1,0 +1,133 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                    </div>
+                    <!-- /.card-header -->
+                    <div class="card-body" id="division-table-container">
+                        <table id="example2" class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th>SN</th>
+                                    <th>Division Name</th>
+                                    <th>Edit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for division in divisions %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ division.name }}</td>
+                                    <td>
+                                        <a href="{% url 'edit_division' division.id %}" class="btn btn-primary">Edit</a> -
+                                        <a href="{% url 'delete_division' division.id %}" 
+                                           onclick="return confirm('Are you sure you want to delete this division?')" 
+                                           class="btn btn-danger">Delete</a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center">No divisions found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <!-- Pagination Section -->
+                        <div class="card-footer d-flex justify-content-center">
+                            <ul class="pagination pagination custom-pagination">
+                                {% if divisions.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link pagination-link" 
+                                           href="?page={{ divisions.previous_page_number }}" 
+                                           data-page="{{ divisions.previous_page_number }}">«</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">«</span>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in divisions.paginator.page_range %}
+                                    {% if divisions.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > divisions.number|add:'-2' and num < divisions.number|add:'2' %}
+                                        <li class="page-item">
+                                            <a class="page-link pagination-link" 
+                                               href="?page={{ num }}" 
+                                               data-page="{{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if divisions.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link pagination-link" 
+                                           href="?page={{ divisions.next_page_number }}" 
+                                           data-page="{{ divisions.next_page_number }}">»</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">»</span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+$(document).ready(function() {
+    // Handle pagination clicks
+    $(document).on('click', '.pagination-link', function(e) {
+        e.preventDefault();
+        var page = $(this).data('page');
+
+        $.ajax({
+            url: "{% url 'manage_division' %}",
+            type: 'GET',
+            data: {
+                page: page
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(html) {
+                // Create a temporary container to parse the full HTML
+                var $temp = $('<div>').html(html);
+                // Extract only the #division-table-container content
+                var $newContent = $temp.find('#division-table-container').html();
+                // Update the existing container
+                $('#division-table-container').html($newContent);
+                // Update browser URL without reloading
+                window.history.pushState({}, '', '?page=' + page);
+            },
+            error: function(xhr, status, error) {
+                console.error('Pagination AJAX failed:', error);
+                alert('Error loading page. Please try again.');
+            }
+        });
+    });
+
+    // Handle browser back/forward buttons
+    window.onpopstate = function(event) {
+        window.location.reload(); // Reload to ensure correct state
+    };
+});
+</script>
+{% endblock custom_js %}

@@ -1,0 +1,980 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block custom_css %}
+    <style>
+        .card-dark {
+            border-color: #343a40;
+        }
+        .card-dark .card-header {
+            border-bottom-color: #454d55;
+            background: linear-gradient(45deg, #343a40, #495057);
+        }
+        .card-title {
+            font-weight: 600;
+        }
+        .badge {
+            font-size: 85%;
+            font-weight: 500;
+            padding: 0.35em 0.5em;
+        }
+        .table th {
+            border-top: none;
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(78, 115, 223, 0.05);
+        }
+        .img-circle {
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .modal-content {
+            border: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .modal-header {
+            border-radius: 0.5rem 0.5rem 0 0 !important;
+        }
+        .select2-container--bootstrap4 .select2-selection--single {
+            height: calc(1.5em + 0.75rem + 2px) !important;
+        }
+        .pagination {
+            font-size: 0.9rem;
+        }
+        .page-item.active .page-link {
+            background-color: #4e73df;
+            border-color: #4e73df;
+        }
+        .page-link {
+            color: #4e73df;
+        }
+        /* Status Badges */
+        .badge-pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-in-progress {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .badge-resolved {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-rejected {
+            background-color: #dc3545;
+            color: white;
+        }
+        /* Unread dot */
+        .unread-dot {
+            font-size: 8px;
+            margin-left: 5px;
+            margin-top: 15px;
+            color: #dc3545;
+        }
+        /* Filter form styles */
+        .form-inline label {
+            justify-content: left;
+            margin-bottom: 0;
+        }
+        @media (max-width: 768px) {
+            .form-inline .form-group {
+                display: block;
+                margin-bottom: 0.5rem;
+                width: 100%;
+            }
+        }
+    </style>
+{% endblock custom_css %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Admin Notifications Card -->
+        <div class="card card-dark mb-4 shadow-lg">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-bell mr-2"></i>
+                    <strong>Notifications from Admin</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ total_notifications }} Total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 10%">Date</th>
+                                <th style="width: 10%">Time</th>
+                                <th style="width: 60%">Message</th>
+                                <th style="width: 20%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for notification in notification_from_admin_obj %}
+                                <tr>
+                                    <td>{{ notification.created_at|date:"M d, Y" }}</td>
+                                    <td>{{ notification.created_at|time:"H:i" }}</td>
+                                    <td>
+                                        <div class="message-preview">
+                                            {{ notification.message|truncatechars:100 }}
+                                            {% if notification.message|length > 100 %}
+                                            <a href="#" data-toggle="modal" data-target="#notificationModal-{{ notification.id }}" onclick="markNotificationRead({{ notification.id }} , 'general-notification' )">Read more</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <form method="post">
+                                                <button type="button" class="btn btn-info" data-toggle="modal" data-target="#notificationModal-{{ notification.id }}" title="View Details" onclick="markNotificationRead({{ notification.id }} , 'general-notification' )">
+                                                    <i class="fas fa-eye"></i> View Details
+                                                </button>
+                                            </form>
+                                            {% if notification.id in notification_from_admin_ids %}
+                                                <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Notification Modal -->
+                                <div class="modal fade leave-modal" id="notificationModal-{{ notification.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog" role="document">
+                                        <div class="modal-content shadow-lg">
+                                            <div class="modal-header bg-gradient-primary text-white">
+                                                <p class="modal-title">Notification from Admin</p>
+                                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-8">
+                                                        <span class="badge badge-primary">
+                                                            {{ notification.created_at|date:"M d, Y H:i" }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Full Message:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ notification.message }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                                    <i class="fas fa-times mr-1"></i> Close
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-bell-slash fa-2x text-muted mb-3"></i>
+                                            <h5 class="text-muted">No notifications from admin</h5>
+                                            <p class="small">You have no notifications at this time</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            {% if notification_from_admin_obj.paginator.num_pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Notifications pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if notification_from_admin_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?notification_from_admin_obj=1" aria-label="First">
+                                        <span aria-hidden="true">&laquo;&laquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?notification_from_admin_obj={{ notification_from_admin_obj.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in notification_from_admin_obj.paginator.page_range %}
+                                {% if notification_from_admin_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > notification_from_admin_obj.number|add:'-3' and num < notification_from_admin_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?notification_from_admin_obj={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if notification_from_admin_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?notification_from_admin_obj={{ notification_from_admin_obj.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?notification_from_admin_obj={{ notification_from_admin_obj.paginator.num_pages }}" aria-label="Last">
+                                        <span aria-hidden="true">&raquo;&raquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing page {{ notification_from_admin_obj.number }} of {{ notification_from_admin_obj.paginator.num_pages }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Leave Requests Card -->
+        <div class="card card-dark mb-4 shadow-lg">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-calendar-alt mr-2"></i>
+                    <strong>Pending Leave Requests</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ pending_leave_requests.count }} Pending</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 25%">Employee</th>
+                                <th style="width: 15%">Leave Date</th>
+                                <th style="width: 40%">Message</th>
+                                <th style="width: 20%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in pending_leave_requests %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if leave.employee.admin.profile_pic %}
+                                                <img src="{{ leave.employee.admin.profile_pic }}" class="img-circle mr-3" width="40" height="40" alt="User Image">
+                                            {% else %}
+                                                <div class="img-circle mr-3 bg-secondary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-user text-white"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ leave.employee.admin.get_full_name }}</strong><br>
+                                                <small class="text-muted">{{ leave.employee.department }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                            <span class="badge badge-info">
+                                            {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}
+                                            </span>
+                                    </td>
+                                    <td>
+                                        <div class="message-preview">
+                                            {{ leave.message|truncatechars:60 }}
+                                            {% if leave.message|length > 60 %}
+                                            <a href="#" data-toggle="modal" data-target="#messageModal-{{ leave.id }}">Read more</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-info" data-toggle="modal" 
+                                                    data-target="#messageModal-{{ leave.id }}" title="View Details">
+                                                <i class="fas fa-eye"></i> View Details
+                                            </button>
+                                            {% if leave.id in leave_unread_ids %}
+                                                <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Message Modal -->
+                                <div class="modal fade leave-modal" id="messageModal-{{ leave.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog" role="document">
+                                        <div class="modal-content shadow-lg">
+                                            <div class="modal-header bg-gradient-primary text-white">
+                                                <p class="modal-title">Leave Request by: <strong>{{ leave.employee.get_full_name }}</strong></p>
+                                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <p><strong>Start Date:</strong><br>
+                                                        {{ leave.start_date|date:"M d, Y" }}</p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p><strong>End Date:</strong><br>
+                                                        {{ leave.end_date|date:"M d, Y" }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Full Message:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ leave.message }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <form method="post" action="{% url 'approve_leave_request' leave.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-success" title="Approve">
+                                                        <i class="fas fa-check-circle mr-1"></i> Approve
+                                                    </button>
+                                                </form>
+                                                <form method="post" action="{% url 'reject_leave_request' leave.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger" title="Reject">
+                                                        <i class="fas fa-times-circle mr-1"></i> Reject
+                                                    </button>
+                                                </form>
+                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                                    <i class="fas fa-times mr-1"></i> Close
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-check-circle text-success mb-3"></i>
+                                            <h5 class="text-muted">No pending leave requests</h5>
+                                            <p class="small">All leave requests have been processed</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Early Clock-Out Requests Card -->
+        <div class="card card-dark mb-4 shadow-lg">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-clock mr-2"></i>
+                    <strong>Pending Early Clock-Out Requests</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ pending_early_clock_out_requests.count }} Pending</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 25%">Employee</th>
+                                <th style="width: 15%">Date</th>
+                                <th style="width: 40%">Reason</th>
+                                <th style="width: 20%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in pending_early_clock_out_requests %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if request.user.profile_pic %}
+                                                <img src="{{ request.user.profile_pic }}" class="img-circle mr-3" width="40" height="40" alt="User Image">
+                                            {% else %}
+                                                <div class="img-circle mr-3 bg-secondary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-user text-white"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ request.user.get_full_name }}</strong><br>
+                                                <small class="text-muted">{{ request.attendance_record.department }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-info">
+                                            {{ request.attendance_record.date|date:"M d, Y" }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="message-preview">
+                                            {{ request.reason|truncatechars:60 }}
+                                            {% if request.reason|length > 60 %}
+                                            <a href="#" data-toggle="modal" data-target="#earlyClockOutModal-{{ request.id }}">Read more</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-info" data-toggle="modal" 
+                                                    data-target="#earlyClockOutModal-{{ request.id }}" title="View Details">
+                                                <i class="fas fa-eye"></i> View Details
+                                            </button>
+                                            {% if request.id in pending_early_clockout_ids %}
+                                                <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Early Clock-Out Modal -->
+                                <div class="modal fade leave-modal" id="earlyClockOutModal-{{ request.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog" role="document">
+                                        <div class="modal-content shadow-lg">
+                                            <div class="modal-header bg-gradient-primary text-white">
+                                                <p class="modal-title">Early Clock-Out Request by: <strong>{{ request.user.get_full_name }}</strong></p>
+                                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">×</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <p><strong>Date:</strong><br>
+                                                        {{ request.attendance_record.date|date:"M d, Y" }}</p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p><strong>Submitted:</strong><br>
+                                                        {{ request.submitted_at|date:"M d, Y H:i" }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Reason:</label>
+                                                    <div class="p-3 bg-light rounded">
+                                                        {{ request.reason }}
+                                                    </div>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Manager Notes (Optional):</label>
+                                                    <textarea class="form-control" name="notes" form="approveForm-{{ request.id }}" placeholder="Add notes for approval"></textarea>
+                                                    <textarea class="form-control" name="notes" form="denyForm-{{ request.id }}" placeholder="Add notes for denial"></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <form method="post" action="{% url 'approve_early_clock_out' request.id %}" class="d-inline" id="approveForm-{{ request.id }}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-success">
+                                                        <i class="fas fa-check-circle mr-1"></i> Approve
+                                                    </button>
+                                                </form>
+                                                <form method="post" action="{% url 'deny_early_clock_out' request.id %}" class="d-inline" id="denyForm-{{ request.id }}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger">
+                                                        <i class="fas fa-times-circle mr-1"></i> Deny
+                                                    </button>
+                                                </form>
+                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                                    <i class="fas fa-times mr-1"></i> Close
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-check-circle text-success mb-3"></i>
+                                            <h5 class="text-muted">No pending early clock-out requests</h5>
+                                            <p class="small">All early clock-out requests have been processed</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if pending_early_clock_out_requests.paginator.num_pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Early Clock-Out Requests Pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if pending_early_clock_out_requests.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?early_clock_out_requests_page={{ pending_early_clock_out_requests.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">«</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% for num in pending_early_clock_out_requests.paginator.page_range %}
+                                {% if pending_early_clock_out_requests.number == num %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                {% elif num > pending_early_clock_out_requests.number|add:'-3' and num < pending_early_clock_out_requests.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?early_clock_out_requests_page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if pending_early_clock_out_requests.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?early_clock_out_requests_page={{ pending_early_clock_out_requests.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">»</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing {{ pending_early_clock_out_requests.start_index }} - {{ pending_early_clock_out_requests.end_index }} of {{ pending_early_clock_out_requests.paginator.count }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Early Clock-Out History Card -->
+        <div class="card card-dark shadow-lg">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-history mr-2"></i>
+                    <strong>Early Clock-Out Request History</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ early_clock_out_history.paginator.count }} Total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 25%">Employee</th>
+                                <th style="width: 25%">Date</th>
+                                <th style="width: 20%">Status</th>
+                                <th style="width: 30%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in early_clock_out_history %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if request.user.profile_pic %}
+                                                <img src="{{ request.user.profile_pic }}" class="img-circle mr-3" width="40" height="40" alt="User Image">
+                                            {% else %}
+                                                <div class="img-circle mr-3 bg-secondary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-user text-white"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ request.user.get_full_name }}</strong><br>
+                                                <small class="text-muted">{{ request.attendance_record.department }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small>{{ request.attendance_record.date|date:"M d, Y" }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if request.status == 'approved' %}badge-resolved
+                                            {% else %}badge-rejected{% endif %}">
+                                            {% if request.status == 'approved' %}Approved{% else %}Denied{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-info" 
+                                                data-toggle="modal" data-target="#historyEarlyClockOutModal-{{ request.id }}">
+                                            <i class="fas fa-eye mr-1"></i> View Details
+                                        </button>
+                                        {% if request.id in manager_unread_ids %}
+                                            <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-history text-muted mb-3"></i>
+                                            <h5 class="text-muted">No early clock-out history</h5>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if early_clock_out_history.paginator.num_pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Early Clock-Out History Pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if early_clock_out_history.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?early_clock_out_history_page={{ early_clock_out_history.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">«</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% for num in early_clock_out_history.paginator.page_range %}
+                                {% if early_clock_out_history.number == num %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                {% elif num > early_clock_out_history.number|add:'-3' and num < early_clock_out_history.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?early_clock_out_history_page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if early_clock_out_history.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?early_clock_out_history_page={{ early_clock_out_history.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">»</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing {{ early_clock_out_history.start_index }} - {{ early_clock_out_history.end_index }} of {{ early_clock_out_history.paginator.count }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Leave History Card -->
+        <div class="card card-dark shadow-lg">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-history mr-2"></i>
+                    <strong>Leave Request History</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ leave_history.paginator.count }} Total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 25%">Employee</th>
+                                <th style="width: 25%">Leave Dates</th>
+                                <th style="width: 20%">Status</th>
+                                <th style="width: 30%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in leave_history %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if leave.employee.admin.profile_pic %}
+                                            <img src="{{ leave.employee.admin.profile_pic }}" class="img-circle mr-3" width="40" height="40" alt="User Image">
+                                            {% else %}
+                                            <div class="img-circle mr-3 bg-secondary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="fas fa-user text-white"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ leave.employee.admin.get_full_name }}</strong><br>
+                                                <small class="text-muted">{{ leave.employee.department }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                            <span class="badge badge-info">
+                                            {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}
+                                            </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if leave.status == 1 %}badge-resolved
+                                            {% else %}badge-rejected{% endif %}">
+                                            {% if leave.status == 1 %}Approved{% else %}Rejected{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-info" 
+                                                data-toggle="modal" data-target="#historyLeaveModal-{{ leave.id }}">
+                                            <i class="fas fa-eye mr-1"></i> View Details
+                                        </button>
+                                        {% if leave.id in manager_unread_ids %}
+                                            <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-history text-muted mb-3"></i>
+                                            <h5 class="text-muted">No leave history</h5>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if leave_history.paginator.num_pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Leave History Pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if leave_history.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?leave_history_page={{ leave_history.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in leave_history.paginator.page_range %}
+                                {% if leave_history.number == num %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                {% elif num > leave_history.number|add:'-3' and num < leave_history.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?leave_history_page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if leave_history.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?leave_history_page={{ leave_history.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing {{ leave_history.start_index }} - {{ leave_history.end_index }} of {{ leave_history.paginator.count }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Leave History Modals -->
+        {% for leave in leave_history %}
+            <div class="modal fade" id="historyLeaveModal-{{ leave.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content shadow-lg">
+                        <div class="modal-header bg-gradient-{% if leave.status == 1 %}success{% else %}danger{% endif %} text-white">
+                            <h5 class="modal-title">
+                                Leave Request - {{ leave.employee.get_full_name }}
+                            </h5>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <p><strong>Start Date:</strong><br>
+                                    {{ leave.start_date|date:"M d, Y" }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>End Date:</strong><br>
+                                    {{ leave.end_date|date:"M d, Y" }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>Status:</strong><br>
+                                    <span class="badge 
+                                        {% if leave.status == 1 %}badge-resolved
+                                        {% else %}badge-rejected{% endif %}">
+                                        {% if leave.status == 1 %}Approved{% else %}Rejected{% endif %}
+                                    </span></p>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Employee Message:</label>
+                                <div class="p-3 bg-light rounded">
+                                    {{ leave.message }}
+                                </div>
+                            </div>
+                            {% if leave.admin_response %}
+                            <div class="form-group">
+                                <label>Manager Response:</label>
+                                <div class="p-3 bg-light rounded">
+                                    {{ leave.admin_response }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                <i class="fas fa-times mr-1"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Early Clock-Out History Modals -->
+        {% for request in early_clock_out_history %}
+            <div class="modal fade leave-modal" id="historyEarlyClockOutModal-{{ request.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content shadow-lg">
+                        <div class="modal-header bg-gradient-{% if request.status == 'approved' %}success{% else %}danger{% endif %} text-white">
+                            <h5 class="modal-title">
+                                Early Clock-Out Request - {{ request.user.get_full_name }}
+                            </h5>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">×</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <p><strong>Date:</strong><br>
+                                    {{ request.attendance_record.date|date:"M d, Y" }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>Submitted:</strong><br>
+                                    {{ request.submitted_at|date:"M d, Y H:i" }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>Status:</strong><br>
+                                    <span class="badge 
+                                        {% if request.status == 'approved' %}badge-approved
+                                        {% else %}badge-denied{% endif %}">
+                                        {{ request.get_status_display }}
+                                    </span></p>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Employee Reason:</label>
+                                <div class="p-3 bg-light rounded">
+                                    {{ request.reason }}
+                                </div>
+                            </div>
+                            {% if request.notes %}
+                            <div class="form-group">
+                                <label>Manager Notes:</label>
+                                <div class="p-3 bg-light rounded">
+                                    {{ request.notes }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                <i class="fas fa-times mr-1"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize Select2 for location dropdowns
+    $(document).ready(function() {
+        $('.select2').select2({
+            theme: 'bootstrap4',
+            width: '100%'
+        });
+    });
+</script>
+{% endblock %}
+
+{% block custom_js %}
+<script>
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const modals = document.querySelectorAll('.modal.fade-notifications');
+        modals.forEach(modal => {
+            modal.addEventListener('hidden.bs.modal', function() {
+                // Remove mark_read parameter to prevent re-marking
+                const url = new URL(window.location.href);
+                url.searchParams.delete('mark_read');
+                window.location.href = url.toString();
+            });
+        });
+    });
+
+    function getCSRFToken() {
+        const name = 'csrftoken';
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith(name + '='))
+            ?.split('=')[1];
+        return cookieValue;
+    }
+
+    function markNotificationRead(notificationId, notificationType) {
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        fetch('{% url "mark_notification_read" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams({
+                'notification_id': notificationId,
+                'notification_type': notificationType
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove unread dot
+                const unreadDot = document.querySelector(`tr[data-notification-id="${notificationId}"] .unread-dot`);
+                if (unreadDot) {
+                    unreadDot.style.display = 'none';
+                }
+            } else {
+                console.error('Failed to mark notification as read:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+
+    // Reload page when any modal with class `leave-modal` is closed
+    document.addEventListener('DOMContentLoaded', function () {
+       $('.leave-modal').on('hidden.bs.modal', function () {
+            location.reload();
+         });
+    });
+</script>
+{% endblock custom_js %}

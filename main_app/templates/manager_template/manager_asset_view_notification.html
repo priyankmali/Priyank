@@ -1,0 +1,968 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block custom_css %}
+<style>
+    /* Main Card Styling */
+    .card-dark {
+        border-color: #343a40;
+    }
+    .card-dark .card-header {
+        border-bottom-color: #454d55;
+        background: linear-gradient(45deg, #343a40, #495057);
+    }
+    .card-title {
+        font-weight: 600;
+    }
+    
+    /* Badge Styling */
+    .badge {
+        font-size: 85%;
+        font-weight: 500;
+        padding: 0.35em 0.5em;
+    }
+    
+    /* Table Styling */
+    .table th {
+        border-top: none;
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(78, 115, 223, 0.05);
+    }
+    
+    /* Asset Card Specific */
+    .asset-card {
+        border-left: 4px solid #4e73df;
+    }
+    .request-card {
+        border-left: 4px solid #6f42c1;
+    }
+    
+    /* Modal Styling */
+    .modal-content {
+        border: none;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    .modal-header {
+        border-radius: 0.5rem 0.5rem 0 0 !important;
+    }
+    
+    /* Image Styling */
+    .img-circle {
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .asset-image {
+        max-height: 180px;
+        object-fit: contain;
+    }
+    
+    /* Form Elements */
+    .select2-container--bootstrap4 .select2-selection--single {
+        height: calc(1.5em + 0.75rem + 2px) !important;
+    }
+    
+    /* Pagination */
+    .pagination {
+        font-size: 0.9rem;
+    }
+    .page-item.active .page-link {
+        background-color: #4e73df;
+        border-color: #4e73df;
+    }
+    .page-link {
+        color: #4e73df;
+    }
+    
+    /* Status Badges */
+    .badge-pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    .badge-in-progress {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .badge-resolved {
+        background-color: #28a745;
+        color: white;
+    }
+    .badge-rejected {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .form-inline .form-group {
+            display: block;
+            margin-bottom: 0.5rem;
+            width: 100%;
+        }
+        .table-responsive {
+            border: none;
+        }
+    }
+    
+    /* Tab Styling */
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+        border-bottom: 3px solid #4e73df;
+    }
+    
+    /* Empty State Styling */
+    .empty-state {
+        padding: 3rem;
+        text-align: center;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock custom_css %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Asset Requests Card -->
+        <div class="card card-dark shadow-lg mb-4">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-laptop mr-2"></i>
+                    <strong>Asset Claim Requests</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ asset_notifications.count }} Pending</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 25%">Employee</th>
+                                <th style="width: 25%">Asset</th>
+                                <th style="width: 20%">Details</th>
+                                <th style="width: 30%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in asset_notifications %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if asset.employee.profile_pic %}
+                                            <img src="{{ asset.employee.profile_pic.url }}" class="img-circle mr-3" width="40" height="40" alt="User Image">
+                                            {% else %}
+                                            <div class="img-circle mr-3 bg-secondary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="fas fa-user text-white"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ asset.employee.get_full_name }}</strong><br>
+                                                <small class="text-muted">{{ asset.employee.department }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>{{ asset.asset.asset_name }}</strong><br>
+                                        <small class="text-muted">{{ asset.asset.asset_brand }}</small>
+                                    </td>
+                                    <td>
+                                        <small>Serial: <strong>{{ asset.asset.asset_serial_number }}</strong></small><br>
+                                        <small>Condition: 
+                                            <span class="badge 
+                                                {% if asset.asset.asset_condition == 'new' %}badge-success
+                                                {% elif asset.asset.asset_condition == 'used' %}badge-primary
+                                                {% else %}badge-secondary{% endif %}">
+                                                {{ asset.asset.asset_condition|default:"Unknown" }}
+                                            </span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" 
+                                                data-target="#assetModal-{{ asset.id }}">
+                                            <i class="fas fa-handshake mr-1"></i> Process Request
+                                        </button>
+                                        {% if not asset.is_read %}
+                                            <span class="badge badge-danger ml-2">New</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-check-circle text-success mb-3"></i>
+                                            <h5 class="text-muted">No pending asset requests</h5>
+                                            <p class="small">All asset requests have been processed</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Asset Issue Requests Card -->
+        <div class="card card-dark shadow-lg mb-4">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-tools mr-2"></i>
+                    <strong>Asset Issue Reports</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-pending mr-1">{{ pending_issue|length }} Pending</span>
+                    <span class="badge badge-in-progress">{{ in_progress_issue|length }} In Progress</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <!-- In Progress Issues Section -->
+                    <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 25%">Employee</th>
+                                <th style="width: 25%">Asset</th>
+                                <th style="width: 30%">Issue</th>
+                                <th style="width: 20%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for issue in in_progress_issue %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ issue.reported_by.get_full_name }}</strong><br>
+                                        <small class="text-muted">{{ issue.reported_by.department }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ issue.asset.asset_name }}</strong><br>
+                                        <small class="text-muted">{{ issue.asset.asset_serial_number }}</small>
+                                    </td>
+                                    <td>
+                                        {{ issue.description|truncatechars:60 }}
+                                        {% if issue.description|length > 60 %}
+                                            <a href="#" data-toggle="modal" data-target="#issueModal-{{ issue.id }}">Read more</a>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" 
+                                                title="View/Resolve Issue"
+                                                data-toggle="modal" 
+                                                data-target="#issueModal-{{ issue.id }}">
+                                            <i class="fas fa-tools"></i> In Progress
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-3">
+                                        <div class="empty-state py-2">
+                                            <i class="fas fa-check-circle text-info mb-2"></i>
+                                            <p class="text-muted mb-0">No issues in progress</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <!-- Pending Issues Section -->
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 25%">Employee</th>
+                                <th style="width: 25%">Asset</th>
+                                <th style="width: 30%">Issue</th>
+                                <th style="width: 20%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for issue in pending_issue %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ issue.reported_by.get_full_name }}</strong><br>
+                                        <small class="text-muted">{{ issue.reported_by.department }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ issue.asset.asset_name }}</strong><br>
+                                        <small class="text-muted">{{ issue.asset.asset_serial_number }}</small>
+                                    </td>
+                                    <td>
+                                        {{ issue.description|truncatechars:60 }}
+                                        {% if issue.description|length > 60 %}
+                                            <a href="#" data-toggle="modal" data-target="#issueModal-{{ issue.id }}">Read more</a>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning" 
+                                                title="View/Resolve Issue"
+                                                data-toggle="modal" 
+                                                data-target="#issueModal-{{ issue.id }}">
+                                            <i class="fas fa-tools"></i> Pending
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-3">
+                                        <div class="empty-state py-2">
+                                            <i class="fas fa-check-circle text-success mb-2"></i>
+                                            <p class="text-muted mb-0">No pending issues</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Asset Request History Card -->
+        <div class="card card-dark shadow-lg mb-4">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-history mr-2"></i>
+                    <strong>Asset Request History</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ asset_history_claim_notication_obj.paginator.count }} Total</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Employee</th>
+                                <th>Asset</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in asset_history_claim_notication_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ asset.employee.get_full_name }}</strong>
+                                    </td>
+                                    <td>
+                                        <small>{{ asset.asset.asset_name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if asset.approved %}badge-success
+                                            {% else %}badge-rejected{% endif %}">
+                                            {% if asset.approved %}Approved{% else %}Rejected{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small>{{ asset.timestamp|date:"M d, Y" }}</small>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-history text-muted mb-3"></i>
+                                            <h5 class="text-muted">No asset request history</h5>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if asset_history_claim_notication_obj.paginator.num_pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Asset Request Notification History Pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if asset_history_claim_notication_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?asset_claim_notification_history={{ asset_history_claim_notication_obj.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in asset_history_claim_notication_obj.paginator.page_range %}
+                                {% if asset_history_claim_notication_obj.number == num %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                {% elif num > asset_history_claim_notication_obj.number|add:'-3' and num < asset_history_claim_notication_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?asset_claim_notification_history={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if asset_history_claim_notication_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?asset_claim_notification_history={{ asset_history_claim_notication_obj.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing {{ asset_history_claim_notication_obj.start_index }} - {{ asset_history_claim_notication_obj.end_index }} of {{ asset_notification_page_obj.paginator.count }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Resolved Asset Issues Card -->
+        <div class="card card-dark shadow-lg">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    <strong>Resolved Asset Issues</strong>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-light">{{ resolved_issues_page_obj.paginator.count }} Resolved</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Employee</th>
+                                <th>Asset</th>
+                                <th>Issue</th>
+                                <th>Resolved Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for issue in resolved_issues_page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ issue.reported_by.get_full_name }}</strong>
+                                    </td>
+                                    <td>
+                                        <small>{{ issue.asset.asset_name }}</small>
+                                    </td>
+                                    <td>
+                                        {{ issue.description|truncatechars:40 }}
+                                    </td>
+                                    <td>
+                                        <small>{{ issue.resolved_date|date:"M d, Y" }}</small>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" 
+                                                data-toggle="modal" 
+                                                data-target="#resolvedIssueModal-{{ issue.id }}">
+                                            <i class="fas fa-eye"></i> Details
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-check-circle text-success mb-3"></i>
+                                            <h5 class="text-muted">No resolved issues</h5>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if resolved_issues_page_obj.paginator.num_pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Resolved Asset Issues History Pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if resolved_issues_page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ resolved_issues_page_obj.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in resolved_issues_page_obj.paginator.page_range %}
+                                {% if resolved_issues_page_obj.number == num %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                {% elif num > resolved_issues_page_obj.number|add:'-3' and num < resolved_issues_page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if resolved_issues_page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ resolved_issues_page_obj.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Showing {{ resolved_issues_page_obj.start_index }} - {{ resolved_issues_page_obj.end_index }} of {{ resolved_issues_page_obj.paginator.count }}
+                    </div>
+                </div>
+            {% endif %} 
+        </div>
+    </div>
+
+    <!-- Asset Request Modals -->
+    {% for asset in asset_notifications %}
+        <div class="modal fade" id="assetModal-{{ asset.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content shadow-lg">
+                    <div class="modal-header bg-gradient-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-laptop mr-2"></i>
+                            Asset Request - {{ asset.asset.asset_name }}
+                        </h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    
+                    <form method="POST" action="{% url 'approve_assest_request' asset.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="asset_id" value="{{ asset.asset.id }}">
+                        
+                        <div class="modal-body">
+                            <div class="row">
+                                <!-- Left Column - Asset Details -->
+                                <div class="col-md-5 border-right">
+                                    <div class="asset-card p-3 mb-3 bg-light rounded">
+                                        <h6 class="text-primary mb-3">
+                                            <i class="fas fa-info-circle mr-2"></i>Asset Details
+                                        </h6>
+                                        
+                                        {% if asset.asset.asset_image %}
+                                            <div class="text-center mb-3">
+                                                <img src="{{ asset.asset.asset_image.url }}" class="img-fluid rounded border shadow-sm asset-image" alt="Asset Image">
+                                            </div>
+                                        {% else %}
+                                            <div class="text-center mb-3 p-4 bg-white rounded border">
+                                                <i class="fas fa-image fa-3x text-muted mb-2"></i>
+                                                <p class="small text-muted">No image available</p>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        <div class="asset-info">
+                                            <p class="mb-2">
+                                                <strong><i class="fas fa-tag mr-2 text-primary"></i>Name:</strong> 
+                                                {{ asset.asset.asset_name }}
+                                            </p>
+                                            <p class="mb-2">
+                                                <strong><i class="fas fa-barcode mr-2 text-primary"></i>Serial:</strong> 
+                                                {{ asset.asset.asset_serial_number }}
+                                            </p>
+                                            <p class="mb-2">
+                                                <strong><i class="fas fa-industry mr-2 text-primary"></i>Brand:</strong> 
+                                                {{ asset.asset.asset_brand }}
+                                            </p>
+                                            <p class="mb-2">
+                                                <strong><i class="fas fa-microchip mr-2 text-primary"></i>OS:</strong> 
+                                                {{ asset.asset.os_version|default:"-" }}
+                                            </p>
+                                            <p class="mb-3">
+                                                <strong><i class="fas fa-network-wired mr-2 text-primary"></i>IP:</strong> 
+                                                {{ asset.asset.ip_address|default:"-" }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Right Column - Request Details -->
+                                <div class="col-md-7">
+                                    <div class="request-card p-3 mb-3 bg-light rounded">
+                                        <h6 class="text-primary mb-3">
+                                            <i class="fas fa-user-tie mr-2"></i>Request By
+                                        </h6>
+                                        
+                                        <div class="employee-details mb-4">
+                                            <div class="d-flex align-items-center mb-3">
+                                                {% if asset.employee.profile_pic %}
+                                                <img src="{{ asset.employee.profile_pic.url }}" class="img-circle mr-3" width="60" height="60" alt="User Image">
+                                                {% else %}
+                                                <div class="img-circle mr-3 bg-secondary d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                                    <i class="fas fa-user text-white fa-2x"></i>
+                                                </div>
+                                                {% endif %}
+                                                <div>
+                                                    <h5>{{ asset.employee.get_full_name }}</h5>
+                                                    <p class="text-muted mb-1">{{ asset.employee.designation }}</p>
+                                                    <p class="text-muted mb-1">{{ asset.employee.department }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="asset_location-{{ asset.id }}" class="font-weight-bold">
+                                                <i class="fas fa-map-marker-alt mr-2 text-primary"></i>Assigned Location
+                                            </label>
+                                            <select name="asset_location" id="asset_location-{{ asset.id }}" 
+                                                    class="form-control select2">
+                                                <option value="" disabled selected>Select location</option>
+                                                {% for location, location_name in LOCATION_CHOICES %}
+                                                    <option value="{{ location }}">{{ location_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        
+                                        {% if asset.asset.qr_code %}
+                                        <div class="text-center mt-4">
+                                            <img src="{{ asset.asset.qr_code.url }}" class="img-thumbnail" 
+                                                style="max-width: 150px;" alt="QR Code">
+                                            <p class="small text-muted mt-2">Scan QR code to verify asset</p>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                <i class="fas fa-times mr-1"></i> Close
+                            </button>
+                            <a href="{% url 'reject_assest_request' asset.id %}" class="btn btn-danger">
+                                <i class="fas fa-times-circle mr-1"></i> Reject
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check-circle mr-1"></i> Approve
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+
+    <!-- Asset Issue Modals -->
+    {% for issue in asset_issue_notifications %}
+    <div class="modal fade" id="issueModal-{{ issue.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <!-- Modal Header -->
+                <div class="modal-header bg-gradient-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-tools mr-2"></i>
+                        Asset Issue: {{ issue.asset.asset_name }}
+                        {% if issue.is_recurring %}
+                        <span class="badge badge-warning ml-2" data-toggle="tooltip" title="Recurring Issue">
+                            <i class="fas fa-redo"></i> Recurring
+                        </span>
+                        {% endif %}
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                
+                <!-- Modal Body with Tabs -->
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="issueTabs-{{ issue.id }}" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="details-tab-{{ issue.id }}" data-toggle="tab" href="#details-{{ issue.id }}" role="tab">
+                                <i class="fas fa-info-circle mr-1"></i>Details
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="resolve-tab-{{ issue.id }}" data-toggle="tab" href="#resolve-{{ issue.id }}" role="tab">
+                                <i class="fas fa-check-circle mr-1"></i>Resolution
+                            </a>
+                        </li>
+                        {% if issue.is_recurring %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="history-tab-{{ issue.id }}" data-toggle="tab" href="#history-{{ issue.id }}" role="tab">
+                                <i class="fas fa-history mr-1"></i>History
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    
+                    <div class="tab-content pt-3" id="issueTabContent-{{ issue.id }}">
+                        <!-- Details Tab -->
+                        <div class="tab-pane fade show active" id="details-{{ issue.id }}" role="tabpanel">
+                            <div class="card card-danger card-outline">
+                                <div class="card-header bg-light">
+                                    <h6><i class="fas fa-file-alt mr-2"></i>Issue Description</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="p-3 bg-light rounded">
+                                        <h5>{{ issue.description }}</h5>
+                                        {% if issue.recurrence_notes %}
+                                        <div class="alert alert-warning mt-2">
+                                            <strong><i class="fas fa-redo"></i> Recurrence Notes:</strong>
+                                            {{ issue.recurrence_notes }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header card-primary card-outline bg-light">
+                                            <h6><i class="fas fa-user mr-2"></i>Report Details</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><strong>Reported By:</strong><br>
+                                            {{ issue.reported_by.get_full_name }} ({{ issue.reported_by.department }})</p>
+                                            
+                                            <p><strong>Date Reported:</strong><br>
+                                            {{ issue.reported_date|date:"M d, Y H:i" }}</p>
+                                            
+                                            <p><strong>Issue Type:</strong><br>
+                                            <span class="badge badge-{{ issue.get_badge_color }}">
+                                                {{ issue.get_issue_type_display }}
+                                            </span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header card-secondary card-outline bg-light">
+                                            <h6><i class="fas fa-laptop mr-2"></i>Asset Details</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><strong>Asset Name:</strong><br>
+                                            {{ issue.asset.asset_name }}</p>
+                                            
+                                            <p><strong>Serial Number:</strong><br>
+                                            {{ issue.asset.asset_serial_number }}</p>
+                                            
+                                            <p><strong>Current Status:</strong><br>
+                                            <span class="badge 
+                                                {% if issue.status == 'resolved' %}badge-resolved
+                                                {% elif issue.status == 'in_progress' %}badge-in-progress
+                                                {% else %}badge-pending{% endif %}">
+                                                {{ issue.get_status_display }}
+                                            </span></p>
+                                            
+                                            {% if issue.resolved_by %}
+                                            <p><strong>Resolved By:</strong><br>
+                                            {{ issue.resolved_by.get_full_name }} on {{ issue.resolved_date|date:"M d, Y" }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Resolution Tab -->
+                        <div class="tab-pane fade" id="resolve-{{ issue.id }}" role="tabpanel">
+                            <form method="post" action="{% url 'resolve_asset_issue' issue.id %}">
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    <label class="font-weight-bold">Resolution Status*</label>
+                                    <select name="status" class="form-control" required>
+                                        {% for value, label in issue.STATUS_CHOICES %}
+                                            <option value="{{ value }}" {% if issue.status == value %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="font-weight-bold">Resolution Method*</label>
+                                    <textarea name="resolution_method" class="form-control" rows="3" 
+                                            placeholder="Describe exactly how you resolved the issue..." required>{{ issue.resolution_method|default:'' }}</textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="font-weight-bold">Notes:</label>
+                                    <textarea name="notes" class="form-control" rows="2"
+                                            placeholder="Any additional notes to {{issue.reported_by}}..">{{ issue.notes|default:'' }}</textarea>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <div class="custom-control custom-checkbox">
+                                                <input type="checkbox" class="custom-control-input" 
+                                                    id="recurringCheck-{{ issue.id }}" name="is_recurring" {% if issue.is_recurring %}checked{% endif %}>
+                                                <label class="custom-control-label" for="recurringCheck-{{ issue.id }}">
+                                                    This is a recurring issue
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group" id="recurrenceNotesContainer-{{ issue.id }}" 
+                                            style="display: {% if issue.is_recurring %}block{% else %}none{% endif %};">
+                                            <label>Recurrence Pattern</label>
+                                            <input type="text" name="recurrence_notes" class="form-control"
+                                                value="{{ issue.recurrence_notes|default:'' }}"
+                                                placeholder="How often does this occur?">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="modal-footer px-0 pb-0">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                        <i class="fas fa-times mr-1"></i> Cancel
+                                    </button>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save mr-1"></i> Save Resolution
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- History Tab -->
+                        {% if issue.is_recurring %}
+                            <div class="tab-pane fade" id="history-{{ issue.id }}" role="tabpanel">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h6><i class="fas fa-history mr-2"></i>Previous Occurrences</h6>
+                                        <small class="text-muted">Showing similar resolved issues for this asset</small>
+                                    </div>
+                                    <div class="card-body">
+                                        {% for resolved in all_resolved_recurring %}
+                                            {% if resolved.asset.id == issue.asset.id %}
+                                            <div class="mb-3 p-2 border-bottom">
+                                                <div class="d-flex justify-content-between">
+                                                    <strong>{{ resolved.resolved_date|date:"M d, Y" }}</strong>
+                                                    <span class="badge badge-resolved">Resolved</span>
+                                                </div>
+                                                <div class="mt-1">
+                                                    <small class="text-muted">Resolution:</small>
+                                                    <p>{{ resolved.resolution_method|truncatechars:100|default:"No details" }}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <small class="text-muted">
+                                                        Took {{ resolved.time_taken.days }} days
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        {% empty %}
+                                        <p class="text-muted">No resolution history found</p>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Resolved Issue Modals -->
+    {% for issue in resolved_issues_page_obj %}
+        <div class="modal fade" id="resolvedIssueModal-{{ issue.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Resolved Issue: {{ issue.asset.asset_name }}
+                        </h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6><i class="fas fa-info-circle mr-2"></i>Issue Details</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Description:</strong></p>
+                                        <div class="p-3 bg-light rounded mb-3">
+                                            {{ issue.description }}
+                                        </div>
+                                        
+                                        <p><strong>Reported By:</strong><br>
+                                        {{ issue.reported_by.get_full_name }}</p>
+                                        
+                                        <p><strong>Reported Date:</strong><br>
+                                        {{ issue.reported_date|date:"M d, Y H:i" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6><i class="fas fa-check-circle mr-2"></i>Resolution Details</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Resolution Method:</strong></p>
+                                        <div class="p-3 bg-light rounded mb-3">
+                                            {{ issue.resolution_method|default:"No resolution notes provided" }}
+                                        </div>
+                                        
+                                        <p><strong>Resolved By:</strong><br>
+                                        {{ issue.resolved_by.get_full_name }}</p>
+                                        
+                                        <p><strong>Resolved Date:</strong><br>
+                                        {{ issue.resolved_date|date:"M d, Y H:i" }}</p>
+                                        
+                                        <p><strong>Asset:</strong><br>
+                                        {{ issue.asset.asset_name }} ({{ issue.asset.asset_serial_number }})</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize Select2 for location dropdowns
+    $(document).ready(function() {
+        $('.select2').select2({
+            theme: 'bootstrap4',
+            width: '100%'
+        });
+        
+        // Toggle recurrence notes field
+        $('[name="is_recurring"]').change(function(){
+            const container = $(this).closest('.row').find('[id^="recurrenceNotesContainer"]');
+            container.toggle(this.checked);
+        });
+        
+        // Initialize tooltips
+        $('[data-toggle="tooltip"]').tooltip();
+    });
+
+    function getCSRFToken() {
+        const name = 'csrftoken';
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith(name + '='))
+            ?.split('=')[1];
+        return cookieValue;
+    }
+
+   
+</script>
+{% endblock scripts %}

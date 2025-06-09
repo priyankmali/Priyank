@@ -1,0 +1,513 @@
+{% extends "main_app/base.html" %}
+{% load static %}
+
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-10 mx-auto">
+                <!-- Asset Header Card -->
+                <div class="card card-primary card-outline">
+                    <div class="card-header d-flex align-items-center">
+                        <h3 class="card-title mr-auto">
+                            <i class="fas fa-laptop mr-2"></i>{{ asset.asset_name }} Details
+                            <small class="text-muted ml-2">#{{ asset.asset_serial_number }}</small>
+                        </h3>
+                        <div class="card-tools">
+                            {% if user.is_authenticated and user.user_type in '12' %}
+                            <div class="btn-group">
+                                <a href="{% url 'asset_app:asset-update' asset.pk %}" class="btn btn-sm btn-light">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                                <button type="button" class="btn btn-sm btn-light dropdown-toggle dropdown-icon" data-toggle="dropdown">
+                                    <span class="sr-only">Toggle Dropdown</span>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-right" role="menu">
+                                    {% if asset.barcode %}
+                                    <a href="{{ asset.barcode.url }}" class="dropdown-item" download>
+                                        <i class="fas fa-barcode mr-2"></i>Download Barcode
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Asset Details -->
+                <div class="row">
+                    <!-- Left Column - Image and Basic Info -->
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                {% if asset.asset_image %}
+                                <img src="{{ asset.asset_image.url }}" alt="{{ asset.asset_name }}" 
+                                     class="img-fluid rounded mb-3" style="max-height: 250px;">
+                                {% else %}
+                                <div class="bg-light p-4 rounded mb-3">
+                                    <i class="fas fa-image fa-5x text-muted mb-2"></i>
+                                    <p class="text-muted mb-0">No image available</p>
+                                </div>
+                                {% endif %}
+
+                                <div class="list-group list-group-flush">
+                                    <div class="list-group-item d-flex justify-content-between">
+                                        <span>Status:</span>
+                                        <span class="badge badge-{% if asset.is_asset_issued %}success{% else %}secondary{% endif %}">
+                                            {{ asset.status }}
+                                        </span>
+                                    </div>
+                                    <div class="list-group-item d-flex justify-content-between">
+                                        <span>Condition:</span>
+                                        <span class="badge badge-{% if asset.asset_condition == 'excellent' %}success{% elif asset.asset_condition == 'good' %}info{% else %}warning{% endif %}">
+                                            {{ asset.asset_condition|title|default:"Not specified" }}
+                                        </span>
+                                    </div>
+                                    {% if asset.is_asset_issued %}
+                                        {% if asset.is_asset_issued and issuance %}
+                                        <div class="list-group-item d-flex justify-content-between">
+                                            <span>Assigned To:</span>
+                                            <span class="border-1 border-bottom border-success">{{ issuance.asset_assignee.get_full_name|default:issuance.asset_assignee.username }}</span>
+                                        </div>
+                                        {% endif %}
+                                        <div class="list-group-item d-flex justify-content-between">
+                                            <span>Assigned by:</span>
+                                            <span>{{ asset.manager.get_full_name|default:asset.manager.username }}</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if asset.barcode %}
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h3 class="card-title">Barcode</h3>
+                            </div>
+                            <div class="card-body text-center">
+                                <img src="{{ asset.barcode.url }}" alt="Barcode" class="img-fluid" style="max-height: 100px;">
+                                <p class="text-muted mt-2">Serial: {{ asset.asset_serial_number }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Right Column - Detailed Information -->
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <ul class="nav nav-tabs card-header-tabs">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" data-toggle="tab" href="#details">Details</a>
+                                    </li>
+                                    {% if asset.asset_category.has_os or asset.asset_category.has_ip %}
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#technical">Technical</a>
+                                        </li>
+                                    {% endif %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-toggle="tab" href="#issuance">Issuance</a>
+                                    </li>
+                                    {% if request.user.user_type != '3' %}
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#history">History</a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#maintenance">Maintenance History</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                            <div class="card-body">
+                                <div class="tab-content">
+                                    <!-- Details Tab -->
+                                    <div class="tab-pane active" id="details">
+                                        <dl class="row">
+                                            <dt class="col-sm-4">Asset Name</dt>
+                                            <dd class="col-sm-8">{{ asset.asset_name|default:"-" }}</dd>
+
+                                            <dt class="col-sm-4">Serial Number</dt>
+                                            <dd class="col-sm-8">{{ asset.asset_serial_number }}</dd>
+
+                                            <dt class="col-sm-4">Brand</dt>
+                                            <dd class="col-sm-8">{{ asset.asset_brand|default:"-" }}</dd>
+
+                                            <dt class="col-sm-4">Category</dt>
+                                            <dd class="col-sm-8">{{ asset.asset_category }}</dd>
+
+                                            <dt class="col-sm-4">Added Date</dt>
+                                            <dd class="col-sm-8">{{ asset.asset_added_date|date:"M d, Y H:i" }}</dd>
+
+                                            <dt class="col-sm-4">Last Updated</dt>
+                                            <dd class="col-sm-8">{{ asset.updated_date|date:"M d, Y H:i" }}</dd>
+                                        </dl>
+                                    </div>
+
+                                    <!-- Technical Tab -->
+                                    <div class="tab-pane" id="technical">
+                                        {% if asset.asset_category.has_os and asset.asset_category.has_ip %}
+                                            <dl class="row">
+                                                <dt class="col-sm-4">OS Version</dt>
+                                                <dd class="col-sm-8">{{ asset.os_version|default:"Not specified" }}</dd>
+                                        
+                                                <dt class="col-sm-4">IP Address</dt>
+                                                <dd class="col-sm-8">{{ asset.ip_address|default:"Not assigned" }}</dd>
+                                        
+                                                <dt class="col-sm-4">Processor</dt>
+                                                <dd class="col-sm-8">{{ asset.processor|default:"Not specified" }}</dd>
+                                        
+                                                <dt class="col-sm-4">RAM</dt>
+                                                <dd class="col-sm-8">{{ asset.ram|default:"Not specified" }}</dd>
+                                        
+                                                <dt class="col-sm-4">Storage</dt>
+                                                <dd class="col-sm-8">{{ asset.storage|default:"Not specified" }}</dd>
+                                        
+                                                <dt class="col-sm-4">Current Status</dt>
+                                                <dd class="col-sm-8">
+                                                    {% if asset.is_asset_issued %}
+                                                        <span class="badge badge-success">Assigned</span>
+                                                    {% else %}
+                                                        <span class="badge badge-secondary">Available</span>
+                                                    {% endif %}
+                                                </dd>
+                                            </dl>
+                                        {% elif asset.asset_category.has_ip %}
+                                        <dl class="row">
+                                            <dt class="col-sm-4">IP Address</dt>
+                                            <dd class="col-sm-8">{{ asset.ip_address|default:"Not specified" }}</dd>
+                                        </dl>
+                                        {% endif %}
+                                    </div>
+                                    
+
+                                    <!-- Issuance Tab -->
+                                    <div class="tab-pane" id="issuance">
+                                        {% if asset.is_asset_issued and current_issuance %}
+                                            <div class="alert alert-info">
+                                                <h5><i class="fas fa-user-check mr-2"></i>Currently Issued To</h5>
+                                                <hr>
+                                                <dl class="row">
+                                                    <dt class="col-sm-4">Assignee</dt>
+                                                    <dd class="col-sm-8">{{ current_issuance.asset_assignee.get_full_name|default:current_issuance.asset_assignee.username }}</dd>
+
+                                                    <dt class="col-sm-4">Location</dt>
+                                                    <dd class="col-sm-8">{{ current_issuance.get_asset_location_display }}</dd>
+
+                                                    <dt class="col-sm-4">Date Issued</dt>
+                                                    <dd class="col-sm-8">{{ current_issuance.date_issued|date:"M d, Y H:i" }}</dd>
+
+                                                    <dt class="col-sm-4">Days Assigned</dt>
+                                                    <dd class="col-sm-8">{{ current_issuance.date_issued|timesince }}</dd>
+                                                </dl>
+                                            </div>
+                                        {% else %}
+                                        <div class="alert alert-secondary">
+                                            <h5><i class="fas fa-box-open mr-2"></i>Asset Available</h5>
+                                            <p>This asset is currently not assigned to anyone.</p>
+                                            {% comment %} {% if user.user_type in '12' %}
+                                            <a href="" class="btn btn-primary">
+                                                <i class="fas fa-hand-holding mr-1"></i> Issue Asset
+                                            </a>
+                                            {% endif %} {% endcomment %}
+                                        </div>
+                                        {% endif %}
+
+                                        <h5 class="mt-4">Issuance History</h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Assignee</th>
+                                                        <th>Location</th>
+                                                        <th>Issued Date</th>
+                                                        <th>Duration</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for record in asset.assetsissuance_set.all|dictsortreversed:"date_issued" %}
+                                                    <tr class="{% if record == issuance %}table-active{% endif %}">
+                                                        <td>{{ record.asset_assignee.get_full_name|default:record.asset_assignee.username }}</td>
+                                                        <td>{{ record.get_asset_location_display }}</td>
+                                                        <td>{{ record.date_issued|date:"M d, Y" }}</td>
+                                                        <td>{{ record.date_issued|timesince }}</td>
+                                                    </tr>
+                                                    {% empty %}
+                                                    <tr>
+                                                        <td colspan="4" class="text-center text-muted">No issuance history found</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                   <!-- Issueance History Tab -->
+                                    {% if request.user.user_type != '3' %}
+                                        <div class="tab-pane fade" id="history">
+                                            <div class="timeline timeline-inverse">
+                                                <!-- Current Assignment Section -->
+                                                {% if current_issuance %}
+                                                    <div class="time-label">
+                                                        <span class="bg-success">Current Assignee</span>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <i class="fas fa-user bg-primary"></i>
+                                                        <div class="timeline-item">
+                                                            <span class="time">
+                                                                <i class="far fa-clock"></i> {{ current_issuance.date_issued|timesince }} active
+                                                            </span>
+                                                            <h3 class="timeline-header">
+                                                                <a href="">
+                                                                    {{ current_issuance.asset_assignee.get_full_name|default:current_issuance.asset_assignee.username }}
+                                                                </a>
+                                                            </h3>
+                                                            
+                                                            <div class="timeline-body">
+                                                                <div class="row">
+                                                                    <div class="col-md-6">
+                                                                        <strong><i class="fas fa-map-marker-alt"></i> Location:</strong> 
+                                                                        {{ current_issuance.get_asset_location_display }}
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <strong><i class="fas fa-calendar-day"></i> Assigned On:</strong> 
+                                                                        {{ current_issuance.date_issued|date:"M d, Y" }}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Assignment History Section -->
+                                                <div class="time-label">
+                                                    <span class="bg-info">Assigned History</span>
+                                                </div>
+                                                
+                                                {% for issuance in historical_issuances %}
+                                                    <div>
+                                                        <i class="fas fa-user bg-purple"></i>
+                                                        <div class="timeline-item">
+                                                            <span class="time">
+                                                                <i class="far fa-clock"></i> {{ issuance.date_assigned|timesince }} active
+                                                            </span>
+                                                            <h3 class="timeline-header">
+                                                                <a href="">
+                                                                    {{ issuance.assignee.get_full_name }}
+                                                                </a>
+                                                            </h3>
+                                                            
+                                                            <div class="timeline-body">
+                                                                <div class="row">
+                                                                    <div class="col-md-4">
+                                                                        <strong><i class="fas fa-calendar-day"></i> Assigned On:</strong> 
+                                                                        {{ issuance.date_assigned|date:"M d, Y" }}
+                                                                    </div>
+                                                                    <div class="col-md-4">
+                                                                        <strong><i class="fas fa-calendar-day"></i> Returned On:</strong> 
+                                                                        {{ issuance.date_returned|date:"M d, Y" }}
+                                                                    </div>
+                                                                    <div class="col-md-4">
+                                                                        <strong>Used Duration:</strong> 
+                                                                        {{ issuance.date_assigned|timesince:now }}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% empty %}
+                                                <div>
+                                                    <i class="fas fa-info-circle bg-gray"></i>
+                                                    <div class="timeline-item">
+                                                        <div class="timeline-body">
+                                                            No previous assignments found for this asset.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                                
+                                                <!-- Asset System History -->
+                                                <div class="time-label">
+                                                    <span class="bg-secondary">System History</span>
+                                                </div>
+                                                
+                                                <div>
+                                                    <i class="fas fa-plus-circle bg-success"></i>
+                                                    <div class="timeline-item">
+                                                        <span class="time">
+                                                            <i class="far fa-clock"></i> {{ asset.asset_added_date|timesince }} ago
+                                                        </span>
+                                                        <h3 class="timeline-header">Asset Created</h3>
+                                                        <div class="timeline-body">
+                                                            Added to inventory by {{ asset.manager.get_full_name|default:asset.manager.username }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div>
+                                                    <i class="fas fa-hourglass-end bg-gray"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
+                                    <!-- Maintenance History Tab -->
+                                    <div class="tab-pane" id="maintenance">
+                                        <div class="card card-primary card-outline">
+                                            <div class="card-header">
+                                                <h5 class="card-title">
+                                                    <i class="fas fa-tools mr-2"></i>
+                                                    Maintenance History
+                                                    <span class="badge badge-light ml-2">{{ issue_count }} total</span>
+                                                    {% if recurring_count > 0 %}
+                                                    <span class="badge badge-warning ml-1">{{ recurring_count }} recurring</span>
+                                                    {% endif %}
+                                                </h5>
+                                            </div>
+                                            <div class="card-body">
+                                                {% if issue_history %}
+                                                <div class="timeline">
+                                                    {% for issue in issue_history %}
+                                                    <div class="time-label">
+                                                        <span class="bg-{% if issue.status == 'resolved' %}success{% else %}danger{% endif %}">
+                                                            {{ issue.reported_date|date:"M d, Y" }}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <i class="fas fa-{% if issue.status == 'resolved' %}check-circle bg-success{% else %}exclamation-triangle bg-warning{% endif %}"></i>
+                                                        <div class="timeline-item">
+                                                            <span class="time">
+                                                                <i class="far fa-clock"></i>
+                                                                {% if issue.status == 'resolved' %}
+                                                                    Resolved in {{ issue.time_taken.days }} days
+                                                                {% else %}
+                                                                    {{ issue.get_status_display }}
+                                                                {% endif %}
+                                                            </span>
+                                                            <h3 class="timeline-header">
+                                                                <a href="#">{{ issue.get_issue_type_display }}</a>
+                                                                {% if issue.is_recurring %}
+                                                                <span class="badge badge-warning ml-2">Recurring</span>
+                                                                {% endif %}
+                                                            </h3>
+                                                            <div class="timeline-body">
+                                                                <div class="row">
+                                                                    <div class="col-md-6">
+                                                                        <strong><i class="fas fa-user"></i> Reported By:</strong>
+                                                                        {{ issue.reported_by.get_full_name }}
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <strong><i class="fas fa-calendar"></i> Reported On:</strong>
+                                                                        {{ issue.reported_date|date:"M d, Y H:i" }}
+                                                                    </div>
+                                                                </div>
+                                                                <div class="mt-2">
+                                                                    <strong>Description:</strong>
+                                                                    <p>{{ issue.description }}</p>
+                                                                </div>
+                                                                {% if issue.resolution_method %}
+                                                                <div class="alert alert-success mt-2">
+                                                                    <strong>Resolution:</strong>
+                                                                    <p>{{ issue.resolution_method }}</p>
+                                                                    {% if issue.resolved_by %}
+                                                                    <small class="text-muted">
+                                                                        Resolved by {{ issue.resolved_by.get_full_name }} on {{ issue.resolved_date|date:"M d, Y" }}
+                                                                    </small>
+                                                                    {% endif %}
+                                                                </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                    <div>
+                                                        <i class="fas fa-clock bg-gray"></i>
+                                                    </div>
+                                                </div>
+                                                {% else %}
+                                                <div class="alert alert-info">
+                                                    <i class="fas fa-info-circle mr-2"></i>
+                                                    No maintenance issues recorded for this asset.
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    .card-primary.card-outline {
+        border-top: 3px solid #007bff;
+    }
+    .timeline {
+        position: relative;
+        padding-left: 50px;
+    }
+    .timeline:before {
+        content: '';
+        position: absolute;
+        left: 25px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dee2e6;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 15px;
+    }
+    .timeline-item:before {
+        content: '';
+        position: absolute;
+        left: -35px;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #6c757d;
+    }
+    .time-label span {
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+        border-bottom: 2px solid #007bff;
+    }
+    .bg-purple {
+        background-color: #6f42c1;
+    }
+</style>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Activate tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Store the active tab in local storage
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+        localStorage.setItem('assetDetailTab', $(e.target).attr('href'));
+    });
+
+    // Retrieve the active tab from local storage
+    var activeTab = localStorage.getItem('assetDetailTab');
+    if(activeTab) {
+        $('.nav-tabs a[href="' + activeTab + '"]').tab('show');
+    }
+});
+</script>
+{% endblock extra_js %}

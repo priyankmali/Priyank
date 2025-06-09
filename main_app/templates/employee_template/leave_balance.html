@@ -1,0 +1,186 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block custom_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<style>
+  .bg-gradient-primary {
+      background: linear-gradient(135deg, #667eea 0%, rgb(64, 11, 117) 100%) !important;
+  }
+  .bg-gradient-success {
+      background: linear-gradient(135deg, rgb(14, 121, 73) 0%, rgb(12, 107, 166) 100%) !important;
+  }
+  .bg-gradient-info {
+      background: linear-gradient(135deg, rgb(92, 28, 141) 0%, rgb(110, 113, 94) 100%) !important;
+  }
+  .card {
+      transition: all 0.3s ease;
+      border-radius: 10px;
+      overflow: hidden;
+      border: none;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+  }
+  .table {
+      border-collapse: separate;
+      border-spacing: 0;
+  }
+  .table thead th {
+      border-top: none;
+      background-color: #f8f9fa;
+      font-weight: 600;
+  }
+  .table-striped tbody tr:nth-of-type(odd) {
+      background-color: rgba(0,0,0,0.02);
+  }
+  .card-header {
+      border-radius: 10px 10px 0 0 !important;
+      background-color: white;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+  }
+  .small-box {
+      border-radius: 10px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+  }
+  .small-box:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+  }
+  .small-box .icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 70px;
+      opacity: 0.2;
+      transition: all 0.3s;
+  }
+  .small-box:hover .icon {
+      opacity: 0.3;
+      transform: scale(1.1);
+  }
+  .alert-info {
+      background: linear-gradient(135deg, rgba(23, 162, 184, 0.9) 0%, rgba(23, 162, 184, 0.7) 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+  }
+  .alert-info .close {
+      color: white;
+      opacity: 0.8;
+  }
+  .bg-gradient-secondary {
+      background: linear-gradient(135deg, #6c757d 0%, #343a40 100%) !important;
+  }
+  .small-box h3 {
+      font-size: 1.8rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+  }
+</style>
+{% endblock custom_css %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Summary Cards -->
+        <div class="row">
+            <!-- Employee Name Card -->
+            <div class="col-lg-4 col-6 mb-4">
+                <div class="small-box bg-gradient-success">
+                    <div class="inner">
+                        <h3>{{ employee.admin.get_full_name|default:"N/A" }}</h3>
+                        <p>Employee Name</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+            </div>
+            <!-- Department Card -->
+            <div class="col-lg-4 col-6 mb-4">
+                <div class="small-box bg-gradient-secondary">
+                    <div class="inner">
+                        <h3>{{ employee.department.name|default:"N/A" }}</h3>
+                        <p>Department</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                </div>
+            </div>
+            <!-- Total Available Leaves Card -->
+            <div class="col-lg-4 col-6 mb-4">
+                <div class="small-box bg-gradient-primary">
+                    <div class="inner">
+                        <h3>{{ total_available_leaves|floatformat:1 }}</h3>
+                        <p>Total Available Leaves</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leave Balance Table -->
+        <div class="row">
+            <div class="col">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="card-title mb-0">Leave Balance History</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th>Allocated Leaves</th>
+                                        <th>Carried Forward</th>
+                                        <th>Used Leaves</th>
+                                        <th>Available Leaves</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for leave in yearly_leave_data %}
+                                    <tr>
+                                        <td>{{ leave.month }}</td>
+                                        <td>{{ leave.allocated_leaves|floatformat:1 }}</td>
+                                        <td>{{ leave.carried_forward|floatformat:1 }}</td>
+                                        <td>{{ leave.used_leaves|floatformat:1 }}</td>
+                                        <td>{{ leave.available_leaves|floatformat:1 }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center">No leave data available.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+$(document).ready(function() {
+    // Placeholder for future JavaScript enhancements
+});
+</script>
+{% endblock custom_js %}

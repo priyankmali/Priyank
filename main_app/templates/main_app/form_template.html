@@ -1,0 +1,95 @@
+{% load static %}
+{% load custom_filters %}
+
+<style>
+    .is-invalid {
+        border-color: #dc3545 !important;
+    }
+
+    .text-danger {
+        font-size: 0.9em;
+        margin-top: 0.25rem;
+    }
+
+    .required-asterisk {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
+
+<form id="manager-form" role="form" method="POST" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    <div class="card-body">
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}" class="field-label">
+                    {{ field.label }}
+                    {% if field.errors %}
+                        <span class="required-asterisk">*</span>
+                    {% endif %}
+                </label>
+
+                {{ field }}
+
+                {% if field.errors %}
+                    <div class="text-danger">{{ field.errors|striptags }}</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="card-footer">
+        <button type="submit" class="btn btn-primary btn-block">
+            {{ button_text|default:"Submit" }}
+        </button>
+    </div>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("manager-form");
+
+        // Handle required field highlighting
+        form.addEventListener("submit", function (e) {
+            // Remove previous client-side asterisks
+            document.querySelectorAll('.required-asterisk').forEach(el => el.remove());
+
+            let hasEmptyRequired = false;
+
+            // Loop through inputs and check if required and empty
+            form.querySelectorAll("input, textarea, select").forEach(input => {
+                const label = form.querySelector(`label[for='${input.id}']`);
+                const alreadyHasAsterisk = label && label.innerHTML.includes('*');
+
+                if (input.hasAttribute("required") && input.value.trim() === "") {
+                    hasEmptyRequired = true;
+
+                    // Add asterisk if not already added
+                    if (label && !alreadyHasAsterisk) {
+                        const star = document.createElement("span");
+                        star.className = "required-asterisk";
+                        star.textContent = " *";
+                        label.appendChild(star);
+                    }
+                }
+            });
+
+            if (hasEmptyRequired) {
+                // Scroll to top or first error (optional)
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                e.preventDefault();  // Prevent form submission
+            }
+        });
+
+        // Automatically open calendar when clicking on date input
+        document.querySelectorAll("input[type='date']").forEach(function(input) {
+            input.addEventListener("click", function () {
+                if (this.showPicker) {
+                    this.showPicker();  // Supported in modern browsers
+                }
+            });
+        });
+    });
+</script>
+

@@ -1,0 +1,197 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- Feedback Form -->
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                    </div>
+                    {% include "main_app/form_template.html" with messages=messages form=form button_text="Submit Feedback" %}
+                </div>
+
+                <!-- Feedback List -->
+                <div class="card card-primary" id="feedback-section">
+                    <div class="card-header">
+                        <h3 class="card-title">Feedback History</h3>
+                    </div>
+                    <div class="table p-2">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Feedback</th>
+                                    <th>Reply</th>
+                                    <th>Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="feedback-table-body">
+                                {% for feedback in page_obj.object_list %}
+                                <tr>
+                                    <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                                    <td>{{ feedback.feedback }}</td>
+                                    <td>
+                                        {% if feedback.reply == "" %}
+                                            <span class="badge badge-warning">No Response Yet</span>
+                                        {% else %}
+                                            {{ feedback.reply }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ feedback.created_at|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No feedback records found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <!-- Pagination -->
+                        {% if page_obj.paginator.num_pages > 1 %}
+                       <div class="d-flex flex-column align-items-center mt-3">
+                            <nav aria-label="Feedback pagination">
+                                <ul class="pagination justify-content-center" id="pagination">
+
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="#" data-page="{{ page_obj.previous_page_number }}" aria-label="Previous">
+                                                <span aria-hidden="true">«</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="#" data-page="{{ num }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="#" data-page="{{ page_obj.next_page_number }}" aria-label="Next">
+                                                <span aria-hidden="true">»</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Handle form submission via AJAX
+    $('#feedback-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        var form = $(this);
+        var button = form.find('button[type="submit"]');
+        button.html('<i class="fas fa-spinner fa-spin"></i> Submitting...').attr('disabled', true);
+        
+        $.ajax({
+            url: window.location.pathname,
+            type: 'POST',
+            data: form.serialize(),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    toastr.success(response.message);
+                    // Update the feedback table and pagination
+                    var $responseHtml = $('<div>').html(response.html);
+                    $('#feedback-table-body').html($responseHtml.find('#feedback-table-body').html());
+                    var $pagination = $responseHtml.find('#pagination');
+                    if ($pagination.length) {
+                        $('#pagination').html($pagination.html());
+                        $('#page-info').html($responseHtml.find('#page-info').html());
+                    } else {
+                        $('#pagination').empty();
+                        $('#page-info').empty();
+                    }
+                    // Reset form
+                    form[0].reset();
+                } else {
+                    toastr.error(response.message);
+                    if (response.errors) {
+                        console.log('Form errors:', response.errors);
+                    }
+                }
+            },
+            error: function(xhr) {
+                try {
+                    var error = JSON.parse(xhr.responseText);
+                    toastr.error(error.message || 'An error occurred');
+                } catch (e) {
+                    toastr.error('An error occurred while submitting feedback');
+                }
+            },
+            complete: function() {
+                button.html('Submit Feedback').attr('disabled', false);
+            }
+        });
+    });
+
+    // Handle pagination clicks
+    $(document).on('click', '#pagination a.page-link', function(e) {
+        e.preventDefault();
+        var page = $(this).data('page');
+        
+        $.ajax({
+            url: window.location.pathname,
+            type: 'GET',
+            data: { page: page },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                // Parse the response HTML
+                var $responseHtml = $('<div>').html(response.html);
+                
+                // Update table body
+                $('#feedback-table-body').html($responseHtml.find('#feedback-table-body').html());
+                
+                // Update page info and pagination
+                var $pagination = $responseHtml.find('#pagination');
+                if ($pagination.length) {
+                    $('#pagination').html($pagination.html());
+                    $('#page-info').html($responseHtml.find('#page-info').html());
+                } else {
+                    $('#pagination').empty();
+                    $('#page-info').empty();
+                }
+            },
+            error: function(xhr) {
+                try {
+                    var error = JSON.parse(xhr.responseText);
+                    toastr.error(error.message || 'An error occurred');
+                } catch (e) {
+                    toastr.error('An error occurred while loading the page');
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,915 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block custom_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<style>
+  /* Core styles */
+  .bg-gradient-primary { background: linear-gradient(135deg, #fd7e14 0%, #138496 100%) !important; }
+  .bg-gradient-success { background: linear-gradient(135deg, rgb(14, 121, 73) 0%, rgb(12, 107, 166) 100%) !important; }
+  .bg-gradient-info { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important; }
+  .bg-gradient-warning { background: linear-gradient(135deg, rgb(189, 108, 104) 0%, rgb(63, 61, 4) 100%) !important; }
+  .bg-pattern-1 { background: linear-gradient(135deg, rgb(29, 85, 134) 0%, rgb(230, 98, 28) 100%) !important; }
+  .bg-pattern-2 { background: linear-gradient(135deg, rgb(187, 34, 204) 0%, rgb(24, 192, 49) 100%) !important; }
+  .bg-pattern-3 { background: linear-gradient(135deg, rgb(59, 48, 60) 0%, rgb(21, 143, 40) 100%) !important; }
+  .bg-pattern-4 { background: linear-gradient(135deg, rgb(146, 89, 99) 0%, rgb(179, 151, 11) 100%) !important; }
+  .icon-circle { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+  .bg-white-20 { background-color: rgba(255,255,255,0.2); }
+  .card { transition: all 0.3s ease; border-radius: 10px; overflow: hidden; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+  .badge { font-weight: 500; padding: 5px 10px; border-radius: 20px; }
+  .btn { border-radius: 8px; padding: 10px 15px; font-weight: 500; transition: all 0.3s; }
+  .btn:hover { transform: translateY(-2px); }
+  .alert-info { background: linear-gradient(135deg, rgba(23, 162, 184, 0.9) 0%, rgba(23, 162, 184, 0.7) 100%); color: white; border: none; border-radius: 10px; }
+  .alert-info .close { color: white; opacity: 0.8; }
+  .small-box { border-radius: 10px; color: white; position: relative; overflow: hidden; transition: all 0.3s; }
+  .small-box:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+  .small-box .icon { position: absolute; top: 10px; right: 10px; font-size: 70px; opacity: 0.2; transition: all 0.3s; }
+  .small-box:hover .icon { opacity: 0.3; transform: scale(1.1); }
+  .table { border-collapse: separate; border-spacing: 0; width: 100%; }
+  .table thead th { border-top: none; background-color: #f8f9fa; font-weight: 600; }
+  .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(0,0,0,0.02); }
+  .pagination .page-item.active .page-link { background-color: #667eea; border-color: #667eea; }
+  .pagination .page-link { color: #667eea; }
+  .card-header { border-radius: 10px 10px 0 0 !important; background-color: white; border-bottom: 1px solid rgba(0,0,0,0.1); }
+  .badge.bg-success { background-color: #28a745 !important; }
+  .badge.bg-dark-gray { background-color: #5A6268 !important; }
+  .badge.bg-warning { background-color: #ffc107 !important; color: #212529; }
+  .badge.bg-secondary { background-color: #6c757d !important; }
+  .badge.bg-danger { background-color: #dc3545 !important; }
+  .badge.bg-primary { background-color: #007bff !important; }
+  .badge.bg-info { background-color: #17a2b8 !important; }
+  .badge.bg-orange { background-color: #fd7e14 !important; color: #212529; }
+  .date-filter-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .date-filter-group .form-group { margin-bottom: 0; display: flex; align-items: center; gap: 5px; flex: 1 1 auto; }
+  .date-filter-group label { color: white; font-weight: 500; margin-bottom: 0; }
+  .date-filter-group input { width: 100%; max-width: 150px; border-radius: 5px; }
+  .pagination-container { display: flex; justify-content: center; align-items: center; width: 100%; }
+  .clocked-status { font-size: 0.8rem; margin-left: 10px; }
+  .clocked-in, .clocked-out { color: white; }
+  .late-by-badge { margin-left: 5px; }
+  .btn-loading { position: relative; pointer-events: none; }
+  .btn-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Dropdown Notification Styling */
+  .navbar-nav .dropdown-menu {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); /* Match bg-gradient-info */
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    margin: 15px 10px 0;
+    padding: 10px;
+    position: absolute;
+    min-width: 280px;
+    max-width: 320px;
+    transition: all 0.3s ease;
+  }
+
+  .dropdown-menu-lg {
+    min-width: 260px;
+    max-width: 400px;
+    overflow-y: auto;
+    max-height: 300px;
+    padding: 8px;
+    background-color: transparent;
+    border-radius: 8px;
+  }
+
+  .dropdown-item {
+    padding: 10px 15px;
+    font-size: 14px;
+    border-radius: 6px;
+    white-space: normal;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s ease;
+  }
+
+  .dropdown-item:hover {
+    background-color: black;
+    color: white;
+    transform: translateX(5px);
+  }
+
+  .dropdown-divider {
+    background-color: rgba(255, 255, 255, 0.3);
+    margin: 6px 0;
+  }
+
+  /* General Responsive Adjustments */
+  .content-wrapper {
+    padding: 15px;
+  }
+
+  .small-box .inner {
+    padding: 15px;
+  }
+
+  .small-box h3 {
+    font-size: 1.8rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table th, .table td {
+    padding: 0.75rem;
+    font-size: 14px;
+  }
+
+  /* Media Queries */
+  @media (max-width: 992px) {
+    .date-filter-group {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .date-filter-group input {
+      max-width: 100%;
+    }
+    .small-box .icon {
+      font-size: 60px;
+    }
+    .small-box:hover .icon {
+      font-size: 65px;
+    }
+    .small-box h3 {
+      font-size: 1.6rem;
+    }
+    .navbar-nav .dropdown-menu {
+      width: 280px;
+      max-width: calc(100vw - 20px);
+      margin: 10px 8px 0;
+    }
+    .dropdown-menu-lg {
+      min-width: 260px;
+      max-width: calc(100vw - 20px);
+      padding: 6px;
+    }
+    .dropdown-item {
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .small-box {
+      text-align: center;
+      padding: 10px;
+    }
+    .small-box .icon {
+      font-size: 50px;
+      top: 5px;
+      right: 5px;
+    }
+    .small-box:hover .icon {
+      font-size: 55px;
+    }
+    .small-box h3 {
+      font-size: 1.4rem;
+    }
+    .alert-info h5 {
+      font-size: 1rem;
+    }
+    .card-header .d-flex {
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-group {
+      width: 100%;
+    }
+    .btn-group .btn {
+      width: 100%;
+      text-align: left;
+    }
+    .table th, .table td {
+      padding: 0.5rem;
+      font-size: 13px;
+    }
+    .navbar-nav .dropdown-menu {
+      width: 100%;
+      max-width: calc(100vw - 16px);
+      margin: 8px 8px 0;
+      left: 8px;
+      right: 8px;
+    }
+    .dropdown-menu-lg {
+      min-width: 100%;
+      max-width: calc(100vw - 16px);
+      padding: 6px;
+    }
+    .dropdown-item {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .small-box h3 {
+      font-size: 1.2rem;
+    }
+    .small-box p {
+      font-size: 0.8rem;
+    }
+    .alert-info {
+      padding: 0.75rem;
+    }
+    .alert-info h5 {
+      font-size: 0.9rem;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+    }
+    .table th, .table td {
+      padding: 0.4rem;
+      font-size: 12px;
+    }
+    .pagination .page-link {
+      padding: 0.25rem 0.5rem;
+      font-size: 12px;
+    }
+    .navbar-nav .dropdown-menu {
+      width: 100%;
+      max-width: calc(100vw - 16px);
+      margin: 8px 8px 0;
+      left: 8px;
+      right: 8px;
+      box-sizing: border-box;
+    }
+    .dropdown-menu-lg {
+      min-width: 100%;
+      max-width: calc(100vw - 16px);
+      padding: 5px;
+    }
+    .dropdown-item {
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .small-box h3 {
+      font-size: 1rem;
+    }
+    .small-box p {
+      font-size: 0.75rem;
+    }
+    .table th, .table td {
+      padding: 0.3rem;
+      font-size: 11px;
+    }
+    .navbar-nav .dropdown-menu {
+      max-width: calc(100vw - 12px);
+      margin: 6px 6px 0;
+      left: 6px;
+      right: 6px;
+    }
+    .dropdown-menu-lg {
+      max-width: calc(100vw - 12px);
+      padding: 4px;
+    }
+    .dropdown-item {
+      padding: 5px 6px;
+      font-size: 10px;
+    }
+  }
+</style>
+{% endblock custom_css %}
+
+{% block content %}
+<section class="content">
+    <div class="alert alert-info alert-dismissible shadow-sm">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">×</button>
+        <h5>
+            <i class="icon fas fa-info-circle"></i> Today’s Work Summary :-
+            {% if today_status == 'Clocked In' %}
+                <span class="badge bg-success clocked-status clocked-in">currently clocked in</span>
+            {% elif today_status == 'Clocked Out' %}
+                <span class="badge bg-secondary clocked-status clocked-out">currently clocked out</span>
+            {% endif %}
+        </h5>
+        <p>
+            <strong>Status:</strong>
+            {% if today_record %}
+                {% if today_record.status == 'present' %}
+                    <span class="badge bg-success">Present</span>
+                {% elif today_record.status == 'late' %}
+                    <span class="badge bg-orange">Late</span>
+                {% elif today_record.status == 'half_day' %}
+                    <span class="badge bg-secondary">Half-Day</span>
+                {% elif today_record.status == 'absent' %}
+                    <span class="badge bg-danger">Absent</span>
+                {% endif %}
+            {% else %}
+                <span class="badge bg-danger">Not Clocked In Today</span>
+            {% endif %}
+            {% if today_late and today_record.status != 'late' %}
+                <span class="badge bg-orange">Late</span>
+            {% endif %}
+            {% if today_half_day and today_record.status != 'half_day' %}
+                <span class="badge bg-secondary">Half Day</span>
+            {% endif %}
+            <span class="badge bg-orange late-by-badge">
+                Late by: {{ today_late_duration_str|default:"0 hours 0 minutes" }}
+            </span>
+        </p>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-gradient-success">
+                    <div class="inner">
+                        <h3>{{ attendance_stats.present_days }}</h3>
+                        <p>Present Days</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-gradient-warning">
+                    <div class="inner">
+                        <h3>{{ attendance_stats.late_days }}</h3>
+                        <p>Late Days</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-gradient-secondary">
+                    <div class="inner">
+                        <h3>{{ attendance_stats.half_days }}</h3>
+                        <p>Half Days</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-gradient-danger">
+                    <div class="inner">
+                        <h3>{{ attendance_stats.absent_days }}</h3>
+                        <p>Absent Days</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-times"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-gradient-primary">
+                    <div class="inner">
+                        <h3>{{ attendance_stats.attendance_percentage }}<sup style="font-size: 20px">%</sup></h3>
+                        <p>Attendance Percentage</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-pattern-1">
+                    <div class="inner">
+                        <h3>{{ total_available_leaves|floatformat:1 }}</h3>
+                        <p>Total Available Leaves</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-pattern-3">
+                    <div class="inner">
+                        <h3>{{ attendance_stats.todays_total_breaks }}</h3>
+                        <p>Today’s Total Breaks</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-minus"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-pattern-4">
+                    <div class="inner">
+                        <h3>{{ attendance_stats.total_breaks_in_month }}</h3>
+                        <p>Monthly Total Breaks</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-minus"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-4">
+                <div class="small-box bg-gradient-info">
+                    <div class="inner">
+                        <h3>{{ attendance_stats.total_days }}</h3>
+                        <p>Total Working Days</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Time History</h5>
+                        <div class="d-flex align-items-center gap-3">
+                            <form method="get" id="dateRangeForm" class="date-filter-group">
+                                <div class="form-group">
+                                    <input type="text" name="start_date" id="start_date" class="form-control form-control-sm" 
+                                           value="{{ current_filters.start_date|default_if_none:'' }}" placeholder="YYYY-MM-DD">
+                                </div>
+                                <div class="form-group">
+                                    <input type="text" name="end_date" id="end_date" class="form-control form-control-sm" 
+                                           value="{{ current_filters.end_date|default_if_none:'' }}" placeholder="YYYY-MM-DD">
+                                </div>
+                                {% if request.user.is_staff %}
+                                    <input type="hidden" name="user" value="{{ request.GET.user }}">
+                                    <input type="hidden" name="department" value="{{ request.GET.department }}">
+                                {% endif %}
+                            </form>
+                            {% if request.user.is_staff %}
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    {% if request.GET.user %}User: {{ request.GET.user }}{% else %}All Users{% endif %}
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}">All Users</a></li>
+                                    {% for user in users %}
+                                    <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}user={{ user.id }}">{{ user.get_full_name }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div class="btn-group ms-2">
+                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    {% if request.GET.department %}Dept: {{ request.GET.department }}{% else %}All Departments{% endif %}
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}">All Departments</a></li>
+                                    {% for dept in departments %}
+                                    <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}department={{ dept.id }}">{{ dept.name }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="timesheetTabsContent">
+                        <div class="tab-pane fade show active" id="daily" role="tabpanel">
+                            <div class="table-responsive" id="timeHistoryTable">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th>Start Time</th>
+                                            <th>End Time</th>
+                                            <th>Duration</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in detailed_time_entries %}
+                                        <tr>
+                                            <td>{{ entry.date|date:"M d, Y" }}</td>
+                                            <td>
+                                                {% if entry.type == 'clock_in' %}
+                                                    <span class="badge bg-primary">Clock In</span>
+                                                {% elif entry.type == 'clock_out' %}
+                                                    <span class="badge bg-secondary">Clock Out</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">Break</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ entry.start_time|time:"h:i:s A" }}</td>
+                                            <td>
+                                                {% if entry.end_time %}
+                                                    {{ entry.end_time|time:"h:i:s A" }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if entry.duration %}
+                                                    {{ entry.duration|duration_to_hours_minutes }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge 
+                                                    {% if entry.status == 'Clocked In' %}bg-success
+                                                    {% elif entry.status == 'Clocked Out' %}bg-secondary
+                                                    {% elif entry.status == 'Break Start' %}bg-warning
+                                                    {% elif entry.status == 'Break End' %}bg-warning
+                                                    {% else %}bg-info
+                                                    {% endif %}">
+                                                    {{ entry.status }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center">No records found for the selected date range.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div class="pagination-container mt-3">
+                                    <nav>
+                                        <ul class="pagination mb-0" id="paginationContainer">
+                                            {% if detailed_time_entries.has_previous %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ detailed_time_entries.previous_page_number }}" data-page="{{ detailed_time_entries.previous_page_number }}" aria-label="Previous">
+                                                        <span aria-hidden="true">«</span>
+                                                    </a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled">
+                                                    <span class="page-link">«</span>
+                                                </li>
+                                            {% endif %}
+                                            {% for num in detailed_time_entries.paginator.page_range %}
+                                                {% if detailed_time_entries.number == num %}
+                                                    <li class="page-item active">
+                                                        <span class="page-link">{{ num }}</span>
+                                                    </li>
+                                                {% elif num > detailed_time_entries.number|add:'-3' and num < detailed_time_entries.number|add:'3' %}
+                                                    <li class="page-item">
+                                                        <a class="page-link" href="?page={{ num }}" data-page="{{ num }}">{{ num }}</a>
+                                                    </li>
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if detailed_time_entries.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ detailed_time_entries.next_page_number }}" data-page="{{ detailed_time_entries.next_page_number }}" aria-label="Next">
+                                                        <span aria-hidden="true">»</span>
+                                                    </a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled">
+                                                    <span class="page-link">»</span>
+                                                </li>
+                                            {% endif %}
+                                        </ul>
+                                    </nav>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="weekly" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Week</th>
+                                            <th>Total Hours</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for week in weekly_view %}
+                                        <tr>
+                                            <td>Week of {{ week.week|date:"M d, Y" }}</td>
+                                            <td>{{ week.total_hours|duration_to_hours_minutes }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="monthly" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Month</th>
+                                            <th>Total Hours</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for month in monthly_view %}
+                                        <tr>
+                                            <td>{{ month.month|date:"F Y" }}</td>
+                                            <td>{{ month.total_hours|duration_to_hours_minutes }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+$(document).ready(function() {
+    console.log("Document ready, initializing Flatpickr");
+
+    // Initialize Flatpickr for date inputs
+    flatpickr("#start_date", {
+        dateFormat: "Y-m-d",
+        defaultDate: "{{ current_filters.start_date|default_if_none:'' }}",
+        onChange: function(selectedDates, dateStr) {
+            console.log("Start date changed:", dateStr);
+            submitFilters();
+        },
+        onReady: function() {
+            console.log("Flatpickr initialized for #start_date");
+        }
+    });
+
+    flatpickr("#end_date", {
+        dateFormat: "Y-m-d",
+        defaultDate: "{{ current_filters.end_date|default_if_none:'' }}",
+        onChange: function(selectedDates, dateStr) {
+            console.log("End date changed:", dateStr);
+            submitFilters();
+        },
+        onReady: function() {
+            console.log("Flatpickr initialized for #end_date");
+        }
+    });
+
+    // Prevent form submission to avoid page reload
+    $('#dateRangeForm').on('submit', function(e) {
+        e.preventDefault();
+        console.log("Form submission prevented");
+    });
+
+    function submitFilters(params = null) {
+        console.log("Submitting filters");
+        const urlParams = params || new URLSearchParams(window.location.search);
+        const startDate = $("#start_date").val();
+        const endDate = $("#end_date").val();
+
+        if (startDate) urlParams.set('start_date', startDate);
+        else urlParams.delete('start_date');
+        if (endDate) urlParams.set('end_date', endDate);
+        else urlParams.delete('end_date');
+
+        {% if request.user.is_staff %}
+        const user = $('#dateRangeForm input[name="user"]').val();
+        const department = $('#dateRangeForm input[name="department"]').val();
+        if (user) urlParams.set('user', user);
+        else urlParams.delete('user');
+        if (department) urlParams.set('department', department);
+        else urlParams.delete('department');
+        {% endif %}
+        const status = '{{ current_filters.status|default_if_none:'' }}';
+        if (status) urlParams.set('status', status);
+        else urlParams.delete('status');
+
+        if (!urlParams.has('page')) {
+            urlParams.delete('page');
+        }
+
+        $('#timeHistoryTable').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i></div>');
+
+        $.ajax({
+            url: window.location.pathname,
+            type: 'GET',
+            data: urlParams.toString(),
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            success: function(response) {
+                console.log("AJAX success:", response);
+                $('#timeHistoryTable').html($(response.html).find('#timeHistoryTable').html());
+                $("#start_date").val(response.html.match(/name="start_date"[^>]*value="([^"]*)"/)?.[1] || '');
+                $("#end_date").val(response.html.match(/name="end_date"[^>]*value="([^"]*)"/)?.[1] || '');
+                {% if request.user.is_staff %}
+                    const userMatch = response.html.match(/name="user"[^>]*value="([^"]*)"/);
+                    const departmentMatch = response.html.match(/name="department"[^>]*value="([^"]*)"/);
+                    $('#dateRangeForm input[name="user"]').val(userMatch ? userMatch[1] : '');
+                    $('#dateRangeForm input[name="department"]').val(departmentMatch ? departmentMatch[1] : '');
+                {% endif %}
+                window.history.pushState({}, '', window.location.pathname + '?' + urlParams.toString());
+            },
+            error: function(xhr) {
+                console.error('AJAX error:', xhr.status, xhr.statusText);
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    console.error('Error message:', error.message || 'Unknown error');
+                } catch (e) {
+                    console.error('Failed to parse error response');
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to load data. Please try again.',
+                    confirmButtonText: 'OK'
+                });
+                $('#timeHistoryTable').html('<div class="text-center py-4">Error loading data</div>');
+            }
+        });
+    }
+
+    $(document).on('click', '#paginationContainer a.page-link[data-page]', function(e) {
+        e.preventDefault();
+        console.log("Pagination clicked:", $(this).data('page'));
+        const page = $(this).data('page');
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('page', page);
+        submitFilters(urlParams);
+    });
+
+    {% if request.user.is_staff %}
+    $(document).on('click', '.dropdown-item', function(e) {
+        e.preventDefault();
+        console.log("Dropdown item clicked:", $(this).attr('href'));
+        const href = $(this).attr('href');
+        const newParams = new URLSearchParams(href.split('?')[1] || '');
+        const urlParams = new URLSearchParams(window.location.search);
+        if (newParams.has('user')) {
+            const user = newParams.get('user');
+            if (user) urlParams.set('user', user);
+            else urlParams.delete('user');
+            $('#dateRangeForm input[name="user"]').val(user || '');
+        }
+        if (newParams.has('department')) {
+            const department = newParams.get('department');
+            if (department) urlParams.set('department', department);
+            else urlParams.delete('department');
+            $('#dateRangeForm input[name="department"]').val(department || '');
+        }
+        submitFilters(urlParams);
+    });
+    {% endif %}
+
+    // Handle clock-in/out forms
+    $('.clock-form').on('submit', function(e) {
+        e.preventDefault();
+        const $form = $(this);
+        const $button = $form.find('button[type="submit"]');
+        $button.prop('disabled', true).addClass('btn-loading');
+
+        $.ajax({
+            url: $form.attr('action'),
+            type: 'POST',
+            data: $form.serialize(),
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+            success: function(response) {
+                if (response.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: response.message,
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else if (response.redirect_url) {
+                    window.location.href = response.redirect_url;
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message,
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred. Please try again.',
+                    confirmButtonText: 'OK'
+                });
+            },
+            complete: function() {
+                $button.prop('disabled', false).removeClass('btn-loading');
+            }
+        });
+    });
+
+    window.addEventListener('popstate', function(event) {
+        console.log("Popstate event triggered");
+        const urlParams = new URLSearchParams(window.location.search);
+        $('#timeHistoryTable').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i></div>');
+        $.ajax({
+            url: window.location.pathname,
+            type: 'GET',
+            data: urlParams.toString(),
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            success: function(response) {
+                $('#timeHistoryTable').html($(response.html).find('#timeHistoryTable').html());
+                $("#start_date").val(response.html.match(/name="start_date"[^>]*value="([^"]*)"/)?.[1] || '');
+                $("#end_date").val(response.html.match(/name="end_date"[^>]*value="([^"]*)"/)?.[1] || '');
+                {% if request.user.is_staff %}
+                    const userMatch = response.html.match(/name="user"[^>]*value="([^"]*)"/);
+                    const departmentMatch = response.html.match(/name="department"[^>]*value="([^"]*)"/);
+                    $('#dateRangeForm input[name="user"]').val(userMatch ? userMatch[1] : '');
+                    $('#dateRangeForm input[name="department"]').val(departmentMatch ? departmentMatch[1] : '');
+                {% endif %}
+            },
+            error: function(xhr) {
+                console.error('Popstate error:', xhr.status, xhr.statusText);
+                window.location.reload();
+            }
+        });
+    });
+});
+
+// Firebase messaging
+var firebaseConfig = {
+    apiKey: "AIzaSyBarDWWHTfTMSrtc5Lj3Cdw5dEvjAkFwtM",
+    authDomain: "sms-with-django.firebaseapp.com",
+    databaseURL: "https://sms-with-django.firebaseio.com",
+    projectId: "sms-with-django",
+    storageBucket: "sms-with-django.appspot.com",
+    messagingSenderId: "945324593139",
+    appId: "1:945324593139:web:03fa99a8854bbd38420c86",
+    measurementId: "G-2F2RXTL9GT"
+};
+firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
+function initializeFirebaseMessaging() {
+    messaging.requestPermission()
+        .then(() => {
+            return messaging.getToken();
+        })
+        .then(token => {
+            console.log("Firebase token:", token);
+            sendToServer(token);
+        })
+        .catch(err => console.error("Permission denied:", err.message));
+    });
+}
+messaging.onMessage(payload => {
+    console.log("Message received:", payload);
+    const notificationOptions = {
+        body: {
+            payload.notification.body,
+            icon: payload.notification.icon
+        }
+    };
+    if (Notification.permission === "granted") {
+        const notification = new Notification(payload.notification.title, notificationOptions);
+        notification.onclick = function(event) {
+            event.preventDefault();
+            window.open(payload.notification.click_action, "_blank");
+            notification.close();
+        };
+    }
+});
+messaging.onTokenRefresh(() => {
+    messaging.getToken().then(newToken => {
+        console.log("Token refreshed:", newToken);
+        sendToServer(newToken);
+    }).catch(err => console.error("Token refresh error:", err));
+});
+function sendToServer(token) {
+    $.ajax({
+        url: "{% url 'employee_fcmtoken' %}",
+        method: "POST",
+        data: { token: token },
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    }).done(() => {
+        console.log("Token sent to server");
+    }).fail(err => {
+        console.error("Failed to send token:", err);
+    });
+}
+initializeFirebaseMessaging();
+</script>
+{% endblock custom_js %}

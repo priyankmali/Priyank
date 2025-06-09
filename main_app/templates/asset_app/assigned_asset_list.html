@@ -1,0 +1,68 @@
+{% extends "main_app/base.html" %}
+{% load static %}
+
+{% block page_title %} My Assests List {% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        {% if user.is_authenticated %}
+            <div class="card card-dark">
+                <div class="card-header">
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Asset Name</th>
+                                <th>Manufacturer</th>
+                                <th>Serial No</th>
+                                <th>Assigned Date</th>
+                                <th>Asset Image</th>
+                                {% if request.user == asset.manager %}
+                                    <th>Actions</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in assets %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ asset.asset_name }}</td>
+                                    <td>{{ asset.asset_manufacturer }}</td>
+                                    <td>{{ asset.asset_serial_number }}</td>
+                                    <td>{{ asset.date_purchased|date:"F d, Y" }}</td>
+                                    <td>
+                                        {% if asset.asset_image %}
+                                            <img class="img-fluid" src="{{ asset.asset_image.url }}" alt="Asset Image" style="max-height: 50px;">
+                                        {% else %}
+                                            No Image
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user == asset.manager %}
+                                            <a href="{% url 'asset_app:aasset-update' asset.id %}" class="btn btn-outline-primary btn-sm">Update</a>
+                                            <a href="{% url 'asset_app:asset-delete' asset.pk %}" class="btn btn-outline-danger btn-sm"
+                                                onclick="return confirm('Are you sure you want to delete this asset?');">Delete</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No assets found.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-warning" role="alert">
+                <h4 class="alert-heading">Please log in to view your assets.</h4>
+                <p>You must be logged in to manage or view your assets. Please log in to continue.</p>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock content %}
