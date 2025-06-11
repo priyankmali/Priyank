@@ -803,6 +803,8 @@ class DailySchedule(models.Model):
         """Get non-empty task description lines"""
         return [line for line in self.task_description.split("\n") if line.strip()]
 
+
+
 class DailyUpdate(models.Model):
     schedule = models.ForeignKey(DailySchedule, on_delete=models.CASCADE, related_name='updates')
     update_description = models.TextField()
@@ -859,6 +861,9 @@ class DailyUpdate(models.Model):
         hours = int(total_minutes // 60)
         minutes = int(total_minutes % 60)
         return f"{hours}h {minutes}m"
+
+
+
 
 
 class EarylyClockOutRequest(models.Model):

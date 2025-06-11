@@ -185,7 +185,7 @@
                         </a>
                     </li>
                     
-                    <li class="nav-item">
+                    <!-- <li class="nav-item">
                         {% url 'admin_view_notification' as admin_view_notification %}
                         <a href="{{admin_view_notification}}" class="nav-link {% if admin_view_notification == request.path %} active {% endif %}">
                             <i class="nav-icon fas fa-bell"></i>
@@ -196,7 +196,7 @@
                                 {% endif %}
                             </p>
                         </a>
-                    </li>
+                    </li> -->
                     <li class="nav-item">
                     {% url 'manager_feedback_message' as manager_feedback_message %}
 
@@ -231,7 +231,9 @@
                         <i class="nav-icon fas fa-calendar-check"></i>
                         <p>
                             Manager Leave
-                            
+                            {% if ceo_notification_from_manager_leave_request  > 0 %}
+                               <span class="badge badge-danger">{{ ceo_notification_from_manager_leave_request  }}</span>
+                            {% endif %}
                         </p>
                     </a>
                 </li>
@@ -242,7 +244,9 @@
                         <i class="nav-icon fas  fa-calendar-day"></i>
                         <p>
                             Employee Leave
-                            
+                            {% if ceo_notification_from_employee_leave_request  > 0 %}
+                               <span class="badge badge-danger">{{ ceo_notification_from_employee_leave_request  }}</span>
+                            {% endif %}
                         </p>
                     </a>
                 </li>
@@ -438,8 +442,8 @@
                         <i class="nav-icon fas fa-bell"></i>
                         <p>
                            View Notifications
-                           {% if total_unread_notifications > 0 %}
-                           <span class="badge badge-danger">{{ total_unread_notifications }}</span>
+                           {% if total_unread_notifications_gen_leave_clockout > 0 %}
+                           <span class="badge badge-danger">{{ total_unread_notifications_gen_leave_clockout }}</span>
                             {% endif %}
                         </p>
                     </a>
@@ -485,7 +489,9 @@
                         <i class="nav-icon fas fa-plane-departure"></i>
                         <p>
                            Apply For Leave
-
+                            {% if manager_leave_request_from_ceo_count > 0 %}
+                                <span class="badge badge-danger">{{ manager_leave_request_from_ceo_count }}</span>
+                            {% endif %}
                         </p>
                     </a>
                 </li>
@@ -680,8 +686,8 @@
                         <i class="nav-icon fas fa-bell"></i>
                         <p>
                            View Notifications
-                           {% if unread_employee_general_notification_count > 0 %}
-                           <span class="right badge badge-danger">{{ unread_employee_general_notification_count }}</span>
+                           {% if total_general_unread_notification > 0 %}
+                           <span class="right badge badge-danger">{{ total_general_unread_notification }}</span>
                             {% endif %}
                         </p>
                     </a>

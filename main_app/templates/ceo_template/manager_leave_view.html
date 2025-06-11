@@ -44,11 +44,14 @@
                                                         class="btn btn-primary btn-sm reply_open_modal">
                                                     <i class="fas fa-reply"></i> <span class="d-none d-md-inline">Reply</span>
                                                 </button>
+                                                {% if leave.id in unread_notification_ids %}
+                                                        <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                                    {% endif %}
                                             </td>
-                                        {% elif leave.status == -1 %}
-                                            <td data-title="Status"><span class="badge badge-danger">Rejected</span></td>
-                                        {% else %}
+                                        {% elif leave.status == 1 %}
                                             <td data-title="Status"><span class="badge badge-success">Approved</span></td>
+                                        {% else %}
+                                            <td data-title="Status"><span class="badge badge-danger">Rejected</span></td>
                                         {% endif %}
                                     </tr>
                                     {% empty %}
@@ -144,6 +147,30 @@
 
 {% block custom_css %}
 <style>
+     /* Status Badges */
+        .badge-pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-in-progress {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .badge-resolved {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-rejected {
+            background-color: #dc3545;
+            color: white;
+        }
+        /* Unread dot */
+        .unread-dot {
+            font-size: 8px;
+            margin-left: 5px;
+            margin-top: 15px;
+            color: #dc3545;
+        }
     /* Responsive table styles */
     @media (max-width: 767.98px) {
         .table-responsive {

@@ -140,28 +140,44 @@ def unread_notification_count(request):
                 employee_asset_claim_request_to_manager_count + manager_leave_request_from_ceo_count
             )
 
+            total_unread_notifications_gen_leave_clockout = (
+                manager_general_count +
+                employee_leave_request_to_manager_count +
+                employee_clockout_request_to_manager_count +
+                employee_asset_claim_request_to_manager_count
+            )
+
             return {
                 'total_unread_notifications': total_unread_notifications,
                 'manager_general_count': manager_general_count,
                 'employee_leave_request_to_manager_count': employee_leave_request_to_manager_count,
                 'employee_clockout_request_to_manager_count': employee_clockout_request_to_manager_count,
                 'total_asset_unread_notifications': employee_asset_claim_request_to_manager_count,
-                'manager_leave_request_from_ceo_count' : manager_leave_request_from_ceo_count
+                'manager_leave_request_from_ceo_count' : manager_leave_request_from_ceo_count,
+                'total_unread_notifications_gen_leave_clockout' : total_unread_notifications_gen_leave_clockout
             }
         
         elif request.user.user_type == '1':
             ceo_notification_from_manager_leave_request = Notification.objects.filter(
                 user = request.user,
                 is_read = False,
-                notification_type__in = ['leave-notification'],
+                notification_type__in = ['manager-leave-notification'],
+                role = 'ceo'
+            ).count()
+            
+            ceo_notification_from_employee_leave_request = Notification.objects.filter(
+                user = request.user,
+                is_read = False,
+                notification_type__in = ['employee-leave-notification'],
                 role = 'ceo'
             ).count()
 
-            total_unread_notifications = (ceo_notification_from_manager_leave_request)
+            total_unread_notifications = (ceo_notification_from_manager_leave_request + ceo_notification_from_employee_leave_request)
 
             return {
                 'total_unread_notifications': total_unread_notifications,
-                'ceo_notification_from_manager_leave_request' : ceo_notification_from_manager_leave_request
+                'ceo_notification_from_manager_leave_request' : ceo_notification_from_manager_leave_request,
+                'ceo_notification_from_employee_leave_request' : ceo_notification_from_employee_leave_request
             }
 
         else:
@@ -192,8 +208,13 @@ def unread_notification_count(request):
                 employee_clockout_request_to_manager_count
             )
 
+            total_general_unread_notification = (
+                employee_notification_from_manager_count 
+            )
+
             return {
                 'total_unread_notifications': total_unread_notifications,
+                'total_general_unread_notification' : total_general_unread_notification,
                 'employee_notification_from_manager_count': employee_notification_from_manager_count,
                 'employee_leave_approved_or_rejected_notification_count': employee_leave_approved_or_rejected_notification_count,
                 'employee_clockout_request_to_manager_count': employee_clockout_request_to_manager_count
@@ -209,7 +230,12 @@ def unread_notification_count(request):
         'employee_notification_from_manager_count': 0,
         'employee_leave_approved_or_rejected_notification_count': 0,
         'employee_clockout_request_to_manager_count': 0,
-        'ceo_notification_from_manager_leave_request' : 0
+        'ceo_notification_from_manager_leave_request' : 0,
+        'ceo_notification_from_employee_leave_request' : 0,
+        'manager_leave_request_from_ceo_count' : 0,
+        'total_unread_notifications_gen_leave_clockout' : 0,
+        'total_general_unread_notification' : 0
+        
     }
        
 

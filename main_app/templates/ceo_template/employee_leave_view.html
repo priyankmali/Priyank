@@ -2,6 +2,35 @@
 {% load static %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 
+{% block custom_css %}
+    <style>
+        /* Status Badges */
+        .badge-pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-in-progress {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .badge-resolved {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-rejected {
+            background-color: #dc3545;
+            color: white;
+        }
+        /* Unread dot */
+        .unread-dot {
+            font-size: 8px;
+            margin-left: 5px;
+            margin-top: 15px;
+            color: #dc3545;
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
 <section class="content">
     <div class="container-fluid">
@@ -39,10 +68,13 @@
                                                     data-target="#reply_modal" 
                                                     value="{{ leave.id }}" 
                                                     class="btn btn-primary reply_open_modal">Reply</button>
-                                        {% elif leave.status == -1 %}
-                                            <span class="badge badge-danger">Rejected</span>
-                                        {% else %}
+                                                    {% if leave.id in unread_ids %}
+                                                        <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                                    {% endif %}
+                                        {% elif leave.status == 1 %}
                                             <span class="badge badge-success">Approved</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">Rejected</span>
                                         {% endif %}
                                     </td>
                                 </tr>

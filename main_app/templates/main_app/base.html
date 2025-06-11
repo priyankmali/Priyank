@@ -95,8 +95,12 @@
                     {% elif request.user.user_type == '1' %}
                         <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                             <div class="dropdown-divider"></div>
-                            <a href="{% url 'admin_view_notification' %}?type=leave" class="dropdown-item">
-                                <i class="fas fa-envelope mr-2"></i> {{ ceo_notification_from_manager_leave_request }} Leave Requests
+                            <a href="{% url 'view_manager_leave' %}?type=leave" class="dropdown-item">
+                                <i class="fas fa-envelope mr-2"></i> {{ ceo_notification_from_manager_leave_request }} Manager Leave Requests
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="{% url 'view_employee_leave' %}?type=leave" class="dropdown-item">
+                                <i class="fas fa-envelope mr-2"></i> {{ ceo_notification_from_employee_leave_request }} Employee Leave Requests
                             </a>
                         </div>
                     {% else %}

@@ -33,6 +33,7 @@ from dateutil.parser import parse
 from django.contrib.auth import update_session_auth_hash
 import logging
 from django.utils.text import get_valid_filename
+from django.contrib.auth import get_user_model 
 
 LOCATION_CHOICES = (
     ("Main Room" , "Main Room"),
@@ -48,6 +49,8 @@ def admin_home(request):
     departments = Department.objects.all()
     total_department = departments.count()
     total_division = Division.objects.all().count()
+    manager_applied_leave = LeaveReportManager.objects.filter(status=0).count()
+    employee_applied_leave = LeaveReportEmployee.objects.filter(status=0).count()
     
     today = date.today()
     current_time = timezone.now()
@@ -99,19 +102,6 @@ def admin_home(request):
     total_employee_on_break = employee_breaks_today.count()
     total_manager_on_break = manager_breaks_today.count()
 
-    # Filter leave reports within the date range
-    total_employee_leave = LeaveReportEmployee.objects.filter(
-        employee__admin_id__in=employee_ids,
-        start_date__lte=end_date,
-        end_date__gte=start_date
-    ).count()
-    
-    total_manager_leave = LeaveReportManager.objects.filter(
-        manager__admin_id__in=manager_ids,
-        start_date__lte=end_date,
-        end_date__gte=start_date
-    ).count()
-
     break_entries = []
     break_queryset = Break.objects.filter(
         attendance_record__user_id__in=all_user_ids,
@@ -160,8 +150,8 @@ def admin_home(request):
         'total_managers': total_managers,
         'total_department': total_department,
         'total_division': total_division,
-        'total_employee_leave': total_employee_leave,
-        'total_manager_leave': total_manager_leave,
+        'employee_applied_leave': employee_applied_leave,
+        'manager_applied_leave': manager_applied_leave,
         'total_employee_on_break': total_employee_on_break,
         'total_manager_on_break': total_manager_on_break,
         'break_entries': page_obj.object_list,
@@ -1002,13 +992,20 @@ def manager_feedback_message(request):
 @csrf_exempt
 def view_manager_leave(request):
     if request.method != 'POST':
-        allLeaveList = LeaveReportManager.objects.all().order_by('-date')
+        allLeaveList = LeaveReportManager.objects.all().order_by('-created_at')
         paginator = Paginator(allLeaveList, 10) 
         page_number = request.GET.get('page')
         allLeave = paginator.get_page(page_number)
 
+        unread_notification_ids = Notification.objects.filter(
+            user = request.user,
+            role = 'ceo',
+            is_read = False
+        ).values_list('leave_or_notification_id' , flat=True)
+
         context = {
             'allLeave': allLeave,
+            'unread_notification_ids' : list(unread_notification_ids),
             'page_title': 'Leave Applications From Manager'
         }
 
@@ -1027,9 +1024,53 @@ def view_manager_leave(request):
         status = 1 if status == '1' else -1
         try:
             leave = get_object_or_404(LeaveReportManager, id=id)
-            leave.status = status
-            leave.save()
-            return HttpResponse(True)
+            if leave.status == 0:
+                if status == -1: # Rejected
+
+                    # Update existing notification to mark as read
+                    Notification.objects.filter(
+                        leave_or_notification_id = leave.id,
+                        role = 'ceo',
+                        is_read = False,
+                        notification_type = 'manager-leave-notification',
+                    ).update(is_read = True)
+
+                    # Send notification to manager
+                    Notification.objects.create(
+                        user = leave.manager.admin,
+                        role = 'manager',
+                        notification_type = 'manager-leave-notification',
+                        leave_or_notification_id = leave.id,
+                        message = "Leave Request Rejected"
+                    )
+
+                    leave.status = status
+                    leave.save()
+                    return HttpResponse(True)
+                
+                if status == 1: # Approved
+
+                    # Update existing notification to mark as read
+                    Notification.objects.filter(
+                        leave_or_notification_id = leave.id,
+                        role = 'ceo',
+                        is_read = False,
+                        notification_type = 'manager-leave-notification'
+                    ).update(is_read = True)
+
+                    # Send notification to manager
+                    Notification.objects.create(
+                        user = leave.manager.admin,
+                        role = 'manager',
+                        notification_type = 'manager-leave-notification',
+                        leave_or_notification_id = leave.id,
+                        message = "Leave Request Approved"
+                    )
+
+                    leave.status = status
+                    leave.save()
+                    return HttpResponse(True)
+                
         except Exception:
             return HttpResponse(False)
 
@@ -1042,8 +1083,14 @@ def view_employee_leave(request):
         paginator = Paginator(all_leave, 10)  
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
+        unread_ids = Notification.objects.filter(
+            user = request.user , 
+            role = 'ceo' ,
+            is_read = False
+        ).values_list('leave_or_notification_id' , flat=True)
         context = {
             'allLeave': page_obj,
+            'unread_ids' : list(unread_ids),
             'page_title': 'Leave Applications From Employees'
         }
 
@@ -1062,10 +1109,88 @@ def view_employee_leave(request):
         status = 1 if status == '1' else -1
         try:
             leave = get_object_or_404(LeaveReportEmployee, id=id)
-            leave.status = status
-            leave.save()
-            return HttpResponse("True")
-        except Exception:
+            if leave.status == 0:  # 0  Pending
+                if status == -1: # Rejected
+                    # Update existing notifications to mark as read
+                    Notification.objects.filter(
+                        notification_type__in = ['leave-notification' , 'employee-leave-notification'],
+                        leave_or_notification_id = leave.id,
+                        is_read = False
+                    ).update(is_read=True)
+                    
+                    # Send notification to employee
+                    Notification.objects.create(
+                        user=leave.employee.admin,
+                        message="Leave Request Rejected",
+                        notification_type="leave-notification",
+                        leave_or_notification_id=id,
+                        role="employee"
+                    )
+
+                    # Update leave status
+                    leave.status = status
+                    leave.save()
+                    return HttpResponse("True")
+
+                if status == 1:  # Approved
+                    employee = leave.employee
+                    start_date = leave.start_date
+                    end_date = leave.end_date or start_date
+                    leave_amount = 0.5 if leave.leave_type == 'Half-Day' else 1.0
+
+                    # Process leave approval
+                    current_date = start_date
+                    while current_date <= end_date:
+                        # Deduct leave
+                        success, remaining_leaves = LeaveBalance.deduct_leave(employee, current_date, leave.leave_type)
+                        if not success:
+                            return HttpResponse("False")
+
+                        # Update or create attendance record
+                        record, created = AttendanceRecord.objects.update_or_create(
+                            user=employee.admin,
+                            date=current_date,
+                            defaults={
+                                'status': 'half_day' if leave.leave_type == 'Half-Day' else 'leave',
+                                'department': employee.department,
+                                'clock_in': None,
+                                'clock_out': None,
+                                'total_worked': None,
+                                'regular_hours': None,
+                                'overtime_hours': None
+                            }
+                        )
+                        current_date += timedelta(days=1)
+
+                    # Prepare notification message
+                    if leave.leave_type == 'Half-Day':
+                        msg = "Half-Day leave approved by Admin."
+                    else:
+                        msg = "Full-Day leave approved by Admin."
+
+                    # Update existing notifications to mark as read
+                    Notification.objects.filter(
+                        notification_type__in = ['leave-notification' , 'employee-leave-notification'],
+                        leave_or_notification_id = leave.id,
+                        is_read = False
+                    ).update(is_read=True)
+                    
+                    # Send notification to employee
+                    employee_user = leave.employee.admin
+                    Notification.objects.create(
+                        user=employee_user,
+                        message=msg,
+                        notification_type="leave-notification",
+                        leave_or_notification_id=id,
+                        role="employee"
+                    )
+
+                    # Update leave status
+                    leave.status = status
+                    leave.save()
+                    return HttpResponse("True")
+
+        except Exception as e:
             return HttpResponse("False")
 
 
@@ -2246,6 +2371,12 @@ def admin_view_attendance(request):
 
 
 
+
+
+logger = logging.getLogger(__name__)
+
+User = get_user_model() 
+
 @login_required
 @csrf_exempt
 def get_manager_and_employee_attendance(request):
@@ -2264,8 +2395,7 @@ def get_manager_and_employee_attendance(request):
             per_page = request.POST.get('per_page', 5)
             try:
                 per_page = int(per_page)
-                # Cap per_page to prevent excessive memory usage
-                per_page = min(per_page, 10000)
+                per_page = min(per_page, 10000)  # Cap per_page
             except ValueError:
                 per_page = 5
 
@@ -2298,6 +2428,7 @@ def get_manager_and_employee_attendance(request):
             if manager_id and manager_id != 'all':
                 try:
                     manager = None
+                    # Adjust Manager lookup based on your model
                     if hasattr(Manager, 'manager_id'):
                         manager = Manager.objects.filter(manager_id=manager_id).first()
                     if not manager and hasattr(Manager, 'admin_id'):
@@ -2313,6 +2444,7 @@ def get_manager_and_employee_attendance(request):
                         Q(user__employee__department=manager.department)
                     )
                 except Exception as e:
+                    logger.error(f"Manager lookup error: {str(e)}")
                     return JsonResponse({"error": f"Manager lookup error: {str(e)}"}, status=400)
 
             # Date filtering
@@ -2324,7 +2456,6 @@ def get_manager_and_employee_attendance(request):
             current_year = today.year
             current_month = today.month
 
-            # NEW: Automatically set holidays for 2nd/4th Saturdays and Sundays
             def set_automatic_holidays(year, month):
                 days_in_month = monthrange(year, month)[1]
                 start_date = datetime(year, month, 1).date()
@@ -2349,7 +2480,6 @@ def get_manager_and_employee_attendance(request):
                             )
                     current_date += timedelta(days=1)
 
-                # Add 2nd and 4th Saturdays
                 for saturday in saturdays:
                     if saturday not in existing_holidays:
                         Holiday.objects.get_or_create(
@@ -2357,10 +2487,9 @@ def get_manager_and_employee_attendance(request):
                             defaults={'name': f'Saturday - {saturday.strftime("%B %d, %Y")}'}
                         )
 
-            # Call to set holidays for current month
             set_automatic_holidays(current_year, current_month)
 
-            # NEW: Calculate total working days and holiday count for the full current month
+            # Calculate total working days and holiday count
             full_month_start = datetime(current_year, current_month, 1).date()
             days_in_month = monthrange(current_year, current_month)[1]
             full_month_end = datetime(current_year, current_month, days_in_month).date()
@@ -2396,7 +2525,6 @@ def get_manager_and_employee_attendance(request):
                 except ValueError:
                     return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
             else:
-                # Default to current month from 1st to today
                 start_date = datetime(current_year, current_month, 1).date()
                 end_date = today
                 queryset = queryset.filter(date__range=(start_date, end_date))
@@ -2427,24 +2555,21 @@ def get_manager_and_employee_attendance(request):
                             days_in_month = monthrange(year, month)[1]
                             end_date = datetime(year, month, days_in_month).date()
                             if year == current_year and month == current_month:
-                                end_date = today  # Limit to today for current month
+                                end_date = today
                             queryset = queryset.filter(date__month=month, date__year=year)
                             holiday_dates = set(Holiday.objects.filter(
                                 date__year=year,
                                 date__month=month
                             ).values_list('date', flat=True))
                             filtered_dates = (start_date, end_date)
-                            # Set holidays for the selected month if it's the current year
                             if year == current_year:
                                 set_automatic_holidays(year, month)
                         except ValueError:
                             return JsonResponse({"error": "Invalid month number"}, status=400)
 
-            # Ensure end_date doesn't exceed today
             if end_date > today:
                 end_date = today
 
-            # Order queryset by date
             queryset = queryset.order_by('-date')
 
             # Initialize attendance statistics
@@ -2453,27 +2578,67 @@ def get_manager_and_employee_attendance(request):
             half_days = 0
             absent_days = 0
 
-            # Calculate attendance stats
             if start_date and end_date:
-                current_date = start_date
                 employee = Employee.objects.get(employee_id=employee_id) if employee_id and employee_id != 'all' else None
-                
-                # Create a dictionary to track all dates in the range and their status
+
+                user_stats = {}
+                if employee:
+                    joining_date = employee.date_of_joining
+                    first_clock_in = AttendanceRecord.objects.filter(
+                        user=employee.admin,
+                        status__in=['present', 'late', 'half_day']
+                    ).order_by('date').first()
+                    first_clock_in_date = first_clock_in.date if first_clock_in else None
+                    user_stats[employee.admin.id] = {
+                        'joining_date': joining_date,
+                        'first_clock_in_date': first_clock_in_date,
+                        'present_days': 0,
+                        'late_days': 0,
+                        'half_days': 0,
+                        'absent_days': 0,
+                    }
+                else:
+                    users = set(queryset.values_list('user', flat=True))
+                    for user_id in users:
+                        user = User.objects.get(id=user_id)
+                        employee_for_user = Employee.objects.filter(admin=user).first()
+                        if employee_for_user:
+                            joining_date = employee_for_user.date_of_joining
+                            first_clock_in = AttendanceRecord.objects.filter(
+                                user=user,
+                                status__in=['present', 'late', 'half_day']
+                            ).order_by('date').first()
+                            first_clock_in_date = first_clock_in.date if first_clock_in else None
+                            user_stats[user_id] = {
+                                'joining_date': joining_date,
+                                'first_clock_in_date': first_clock_in_date,
+                                'present_days': 0,
+                                'late_days': 0,
+                                'half_days': 0,
+                                'absent_days': 0,
+                            }
+
                 date_status_map = {}
                 for record in queryset:
-                    if record.date not in date_status_map:
-                        date_status_map[record.date] = record.status
+                    user_id = record.user.id
+                    if user_id not in date_status_map:
+                        date_status_map[user_id] = {}
+                    date_status_map[user_id][record.date] = record.status
 
-                # Also track leaves for the employee
-                leave_dates = set()
-                half_day_leave_dates = set()
-                if employee:
+                leave_dates_map = {}
+                half_day_leave_dates_map = {}
+                for user_id, stats in user_stats.items():
+                    employee_for_user = Employee.objects.filter(admin_id=user_id).first()
+                    if not employee_for_user:
+                        continue
                     leaves = LeaveReportEmployee.objects.filter(
-                        employee=employee,
+                        employee=employee_for_user,
                         status=1,
                         start_date__lte=end_date,
                         end_date__gte=start_date
                     )
+                    leave_dates = set()
+                    half_day_leave_dates = set()
                     for leave in leaves:
                         leave_start = max(leave.start_date, start_date)
                         leave_end = min(leave.end_date, end_date)
@@ -2484,54 +2649,67 @@ def get_manager_and_employee_attendance(request):
                             else:
                                 leave_dates.add(current_leave_date)
                             current_leave_date += timedelta(days=1)
+                    leave_dates_map[user_id] = leave_dates
+                    half_day_leave_dates_map[user_id] = half_day_leave_dates
 
-                while current_date <= end_date:
-                    weekday = current_date.weekday()
-                    is_sunday = weekday == 6
-                    is_saturday = weekday == 5
-                    is_2nd_or_4th_saturday = is_saturday and ((current_date.day - 1) // 7) in [1, 3]
-                    is_holiday = current_date in holiday_dates
+                for user_id, stats in user_stats.items():
+                    joining_date = stats['joining_date']
+                    first_clock_in_date = stats['first_clock_in_date']
+                    current_date = start_date
 
-                    # Determine if this is a working day for attendance stats
-                    if not (is_sunday or is_2nd_or_4th_saturday or is_holiday):
-                        # Check attendance status
-                        record_status = date_status_map.get(current_date)
-                        
-                        # Handle leaves
-                        if current_date in half_day_leave_dates:
-                            present_days += 1
-                            half_days += 1
-                            late_days += 1
-                            absent_days += 0.5  # Count half-day leave as 0.5 absent day
-                        elif current_date in leave_dates:
-                            # Full day leave counts as present
-                            present_days += 1
-                        elif record_status == 'present':
-                            present_days += 1
-                        elif record_status == 'late':
-                            present_days += 1
-                            late_days += 1
-                        elif record_status == 'half_day':
-                            present_days += 1
-                            half_days += 1
-                            absent_days += 0.5  # Count half-day attendance as 0.5 absent day
-                        else:
-                            absent_days += 1
+                    if not first_clock_in_date or today < first_clock_in_date:
+                        continue
 
-                    current_date += timedelta(days=1)
+                    while current_date <= end_date:
+                        if current_date < joining_date:
+                            current_date += timedelta(days=1)
+                            continue
 
-            # Calculate attendance percentage
+                        weekday = current_date.weekday()
+                        is_sunday = weekday == 6
+                        is_saturday = weekday == 5
+                        is_2nd_or_4th_saturday = is_saturday and ((current_date.day - 1) // 7) in [1, 3]
+                        is_holiday = current_date in holiday_dates
+
+                        if not (is_sunday or is_2nd_or_4th_saturday or is_holiday):
+                            user_date_status = date_status_map.get(user_id, {}).get(current_date)
+                            if current_date in half_day_leave_dates_map.get(user_id, set()):
+                                stats['present_days'] += 1
+                                stats['half_days'] += 1
+                                stats['late_days'] += 1
+                                stats['absent_days'] += 0.5
+                            elif current_date in leave_dates_map.get(user_id, set()):
+                                stats['present_days'] += 1
+                            elif user_date_status == 'present':
+                                stats['present_days'] += 1
+                            elif user_date_status == 'late':
+                                stats['present_days'] += 1
+                                stats['late_days'] += 1
+                            elif user_date_status == 'half_day':
+                                stats['present_days'] += 1
+                                stats['half_days'] += 1
+                                stats['absent_days'] += 0.5
+                            elif current_date <= today:
+                                if first_clock_in_date and current_date < first_clock_in_date:
+                                    stats['absent_days'] += 1
+                                elif not user_date_status and current_date not in leave_dates_map.get(user_id, set()) and current_date not in half_day_leave_dates_map.get(user_id, set()):
+                                    stats['absent_days'] += 1
+
+                        current_date += timedelta(days=1)
+
+                for user_id, stats in user_stats.items():
+                    present_days += stats['present_days']
+                    late_days += stats['late_days']
+                    half_days += stats['half_days']
+                    absent_days += stats['absent_days']
+
             filtered_working_days = total_working_days if filtered_dates[1] == full_month_end else sum(
                 1 for d in [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
                 if not (d.weekday() == 6 or (d.weekday() == 5 and ((d.day - 1) // 7) in [1, 3]) or d in holiday_dates)
             )
-            if filtered_working_days > 0:
-                attendance_percentage = (present_days / filtered_working_days) * 100
-                attendance_percentage = round(attendance_percentage, 1)
-            else:
-                attendance_percentage = 0
+            attendance_percentage = (present_days / filtered_working_days) * 100 if filtered_working_days > 0 else 0
+            attendance_percentage = round(attendance_percentage, 1)
 
-            # Process attendance records
             attendance_list = []
             attendance_dates = set(queryset.values_list('date', flat=True))
 
@@ -2551,19 +2729,14 @@ def get_manager_and_employee_attendance(request):
                 else:
                     continue
 
-                # Determine status - check if it's a holiday or weekend first
                 weekday = record.date.weekday()
                 is_sunday = weekday == 6
                 is_saturday = weekday == 5
                 is_2nd_or_4th_saturday = is_saturday and ((record.date.day - 1) // 7) in [1, 3]
                 is_holiday = record.date in holiday_dates
 
-                if is_holiday or is_sunday or is_2nd_or_4th_saturday:
-                    status = "Holiday"
-                else:
-                    status = record.status
+                status = "Holiday" if is_holiday or is_sunday or is_2nd_or_4th_saturday else record.status
 
-                # Calculate hours worked
                 hours = "0h 0m"
                 if record.total_worked:
                     total_seconds = record.total_worked.total_seconds()
@@ -2584,7 +2757,6 @@ def get_manager_and_employee_attendance(request):
                     "user_id": user_id,
                 })
 
-            # Add missing holiday records
             current_date = start_date
             while current_date <= end_date:
                 weekday = current_date.weekday()
@@ -2603,23 +2775,19 @@ def get_manager_and_employee_attendance(request):
                         "hours": "0h 0m",
                         "name": "",
                         "department": "",
-                        # "user_type": "Admin",
-                        "user_type" : "",
+                        "user_type": "",
                         "user_id": "",
                     })
                 current_date += timedelta(days=1)
 
-            # Sort attendance by date descending
             attendance_list = sorted(attendance_list, key=lambda x: x['date'], reverse=True)
 
-            # Paginate results
             paginator = Paginator(attendance_list, per_page)
             try:
                 page_obj = paginator.page(page)
             except:
                 return JsonResponse({"error": "Invalid page number"}, status=400)
 
-            # Prepare pagination data
             pagination_data = {
                 "current_page": page_obj.number,
                 "total_pages": paginator.num_pages,
@@ -2632,7 +2800,6 @@ def get_manager_and_employee_attendance(request):
                 "end_index": page_obj.end_index(),
             }
 
-            # Prepare response
             response_data = {
                 "data": page_obj.object_list,
                 "pagination": pagination_data,
@@ -2650,5 +2817,6 @@ def get_manager_and_employee_attendance(request):
             return JsonResponse(response_data, safe=False)
 
         except Exception as e:
+            logger.error(f"Server error: {str(e)}")
             return JsonResponse({"error": f"Server error: {str(e)}"}, status=500)
     return JsonResponse({"error": "Invalid request method"}, status=405)

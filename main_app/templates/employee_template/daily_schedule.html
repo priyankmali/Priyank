@@ -332,12 +332,14 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSummary.textContent = `Total scheduled time: ${hours}h ${minutes}m`;
         document.getElementById('total-time-display').textContent = (totalMinutes / 60).toFixed(2);
         
-        if (totalMinutes < 480) {
+        // Show justification box only if total time is less than 8 hours (480 minutes)
+        if (totalMinutes < 480 && totalMinutes > 0) {
             timeSummary.innerHTML += ' <span class="error">(8 hours required)</span>';
             justificationBox.style.display = 'block';
         } else {
             timeSummary.innerHTML = timeSummary.textContent;
             justificationBox.style.display = 'none';
+            justificationInput.value = ''; // Clear justification input when not needed
         }
     }
 
@@ -426,8 +428,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('form-project-input').value = projectInput.value.trim();
             document.getElementById('form-justification-input').value = justificationInput.value.trim();
 
-            // Handle justification logic
-            if (totalMinutes < 480 && !justificationInput.value.trim()) {
+            // Require justification only if total time is less than 8 hours and non-zero
+            if (totalMinutes < 480 && totalMinutes > 0 && !justificationInput.value.trim()) {
                 alert('Please provide justification for scheduling less than 8 hours');
                 return;
             }

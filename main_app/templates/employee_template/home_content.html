@@ -68,7 +68,7 @@
 
   /* Dropdown Notification Styling */
   .navbar-nav .dropdown-menu {
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); /* Match bg-gradient-info */
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
     border: none;
     border-radius: 10px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
@@ -110,6 +110,28 @@
   .dropdown-divider {
     background-color: rgba(255, 255, 255, 0.3);
     margin: 6px 0;
+  }
+
+  /* Flatpickr Calendar Styling */
+  .flatpickr-calendar {
+    z-index: 10000 !important;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    width: 280px;
+    padding: 10px;
+  }
+  .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+  }
+  .flatpickr-day:hover {
+    background: #e0e7ff;
+    border-color: #e0e7ff;
+  }
+  .flatpickr-input {
+    cursor: pointer;
   }
 
   /* General Responsive Adjustments */
@@ -171,6 +193,9 @@
       padding: 8px 12px;
       font-size: 13px;
     }
+    .flatpickr-calendar {
+      width: 260px;
+    }
   }
 
   @media (max-width: 768px) {
@@ -223,6 +248,9 @@
       padding: 6px 10px;
       font-size: 12px;
     }
+    .flatpickr-calendar {
+      width: 240px;
+    }
   }
 
   @media (max-width: 576px) {
@@ -267,6 +295,9 @@
       padding: 6px 8px;
       font-size: 11px;
     }
+    .flatpickr-calendar {
+      width: 220px;
+    }
   }
 
   @media (max-width: 360px) {
@@ -293,6 +324,9 @@
     .dropdown-item {
       padding: 5px 6px;
       font-size: 10px;
+    }
+    .flatpickr-calendar {
+      width: 200px;
     }
   }
 </style>
@@ -646,28 +680,55 @@
 $(document).ready(function() {
     console.log("Document ready, initializing Flatpickr");
 
+    // Debounce function to limit rapid AJAX calls
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
     // Initialize Flatpickr for date inputs
-    flatpickr("#start_date", {
+    const startPicker = flatpickr("#start_date", {
         dateFormat: "Y-m-d",
         defaultDate: "{{ current_filters.start_date|default_if_none:'' }}",
+        allowInput: true,
+        clickOpens: true,
+        position: "auto",
         onChange: function(selectedDates, dateStr) {
             console.log("Start date changed:", dateStr);
-            submitFilters();
+            if (selectedDates[0]) {
+                endPicker.set("minDate", selectedDates[0]);
+            }
+            debouncedSubmitFilters();
         },
         onReady: function() {
             console.log("Flatpickr initialized for #start_date");
+        },
+        onClose: function() {
+            console.log("Start date picker closed");
         }
     });
 
-    flatpickr("#end_date", {
+    const endPicker = flatpickr("#end_date", {
         dateFormat: "Y-m-d",
         defaultDate: "{{ current_filters.end_date|default_if_none:'' }}",
+        allowInput: true,
+        clickOpens: true,
+        position: "auto",
         onChange: function(selectedDates, dateStr) {
             console.log("End date changed:", dateStr);
-            submitFilters();
+            if (selectedDates[0]) {
+                startPicker.set("maxDate", selectedDates[0]);
+            }
+            debouncedSubmitFilters();
         },
         onReady: function() {
             console.log("Flatpickr initialized for #end_date");
+        },
+        onClose: function() {
+            console.log("End date picker closed");
         }
     });
 
@@ -677,7 +738,8 @@ $(document).ready(function() {
         console.log("Form submission prevented");
     });
 
-    function submitFilters(params = null) {
+    // Submit filters with debouncing
+    const debouncedSubmitFilters = debounce(function(params = null) {
         console.log("Submitting filters");
         const urlParams = params || new URLSearchParams(window.location.search);
         const startDate = $("#start_date").val();
@@ -741,7 +803,7 @@ $(document).ready(function() {
                 $('#timeHistoryTable').html('<div class="text-center py-4">Error loading data</div>');
             }
         });
-    }
+    }, 300);
 
     $(document).on('click', '#paginationContainer a.page-link[data-page]', function(e) {
         e.preventDefault();
@@ -749,7 +811,7 @@ $(document).ready(function() {
         const page = $(this).data('page');
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.set('page', page);
-        submitFilters(urlParams);
+        debouncedSubmitFilters(urlParams);
     });
 
     {% if request.user.is_staff %}
@@ -771,7 +833,7 @@ $(document).ready(function() {
             else urlParams.delete('department');
             $('#dateRangeForm input[name="department"]').val(department || '');
         }
-        submitFilters(urlParams);
+        debouncedSubmitFilters(urlParams);
     });
     {% endif %}
 
@@ -873,15 +935,12 @@ function initializeFirebaseMessaging() {
             sendToServer(token);
         })
         .catch(err => console.error("Permission denied:", err.message));
-    });
 }
 messaging.onMessage(payload => {
     console.log("Message received:", payload);
     const notificationOptions = {
-        body: {
-            payload.notification.body,
-            icon: payload.notification.icon
-        }
+        body: payload.notification.body,
+        icon: payload.notification.icon
     };
     if (Notification.permission === "granted") {
         const notification = new Notification(payload.notification.title, notificationOptions);

@@ -92,32 +92,20 @@
     <div class="container-fluid">
         <!-- Summary Cards -->
         <div class="row">
-            <!-- Employee Name Card -->
-            <div class="col-lg-4 col-6 mb-4">
+            <!-- Yearly Total Allocated Leaves Card -->
+            <div class="col-lg-6 col-6 mb-4">
                 <div class="small-box bg-gradient-success">
                     <div class="inner">
-                        <h3>{{ employee.admin.get_full_name|default:"N/A" }}</h3>
-                        <p>Employee Name</p>
+                        <h3>{{ yearly_total_allocated_leaves|floatformat:1 }}</h3>
+                        <p>Yearly Total Allocated Leaves</p>
                     </div>
                     <div class="icon">
-                        <i class="fas fa-user"></i>
-                    </div>
-                </div>
-            </div>
-            <!-- Department Card -->
-            <div class="col-lg-4 col-6 mb-4">
-                <div class="small-box bg-gradient-secondary">
-                    <div class="inner">
-                        <h3>{{ employee.department.name|default:"N/A" }}</h3>
-                        <p>Department</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-building"></i>
+                        <i class="fas fa-calendar-alt"></i>
                     </div>
                 </div>
             </div>
             <!-- Total Available Leaves Card -->
-            <div class="col-lg-4 col-6 mb-4">
+            <div class="col-lg-6 col-6 mb-4">
                 <div class="small-box bg-gradient-primary">
                     <div class="inner">
                         <h3>{{ total_available_leaves|floatformat:1 }}</h3>
