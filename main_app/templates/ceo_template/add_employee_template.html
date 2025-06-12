@@ -45,25 +45,68 @@
     }
 
     $(document).ready(function(){
-        // Phone number input filter with message
-        $("#id_phone_number, #id_emergency_contact").on("input", function() {
+        // Phone number and emergency contact input filter with validation
+        $("#id_phone_number, #id_emergency_phone").on("input", function() {
             const original = this.value;
             const digitsOnly = original.replace(/\D/g, '');
             const warningId = this.id + "_warning";
-    
+            const isEmergencyPhone = this.id === "id_emergency_phone";
+            const phoneNumber = $("#id_phone_number").val();
+            const emergencyPhone = $("#id_emergency_phone").val();
+
+            // Remove existing warnings
+            $("#" + warningId).remove();
+
+            // Check for non-digits
             if (original !== digitsOnly) {
-                // Show warning
-                if ($("#" + warningId).length === 0) {
-                    $("<span id='" + warningId + "' class='invalid d-block mt-1'>Only digits are allowed</span>").insertAfter(this);
+                $("<span id='" + warningId + "' class='invalid d-block mt-1'>Only digits are allowed</span>").insertAfter(this);
+                this.value = digitsOnly;
+                return;
+            }
+
+            // Update field value
+            this.value = digitsOnly;
+
+            // Additional validation for emergency phone
+            if (isEmergencyPhone) {
+                if (digitsOnly.length !== 10) {
+                    $("<span id='" + warningId + "' class='invalid d-block mt-1'>Emergency contact phone number must be exactly 10 digits</span>").insertAfter(this);
+                } else if (digitsOnly === phoneNumber) {
+                    $("<span id='" + warningId + "' class='invalid d-block mt-1'>Emergency contact phone number cannot be the same as primary phone number</span>").insertAfter(this);
+                } else {
+                    $("<span id='" + warningId + "' class='valid d-block mt-1'>Valid emergency contact phone number</span>").insertAfter(this);
                 }
             } else {
-                // Remove warning
-                $("#" + warningId).remove();
+                // Validation for primary phone number
+                if (digitsOnly.length > 0 && digitsOnly.length !== 10) {
+                    $("<span id='" + warningId + "' class='invalid d-block mt-1'>Phone number must be exactly 10 digits</span>").insertAfter(this);
+                } else if (digitsOnly.length === 10) {
+                    $("<span id='" + warningId + "' class='valid d-block mt-1'>Valid phone number</span>").insertAfter(this);
+                }
             }
-    
-            this.value = digitsOnly;
         });
-    
+
+        // Prevent form submission if emergency phone is invalid
+        $("#profile-form").on("submit", function(event) {
+            const emergencyPhone = $("#id_emergency_phone").val();
+            const phoneNumber = $("#id_phone_number").val();
+            const warningId = "id_emergency_phone_warning";
+
+            // Remove existing warnings
+            $("#" + warningId).remove();
+
+            if (!emergencyPhone) {
+                event.preventDefault();
+                $("<span id='" + warningId + "' class='invalid d-block mt-1'>Emergency contact phone number is required</span>").insertAfter("#id_emergency_phone");
+            } else if (emergencyPhone.length !== 10) {
+                event.preventDefault();
+                $("<span id='" + warningId + "' class='invalid d-block mt-1'>Emergency contact phone number must be exactly 10 digits</span>").insertAfter("#id_emergency_phone");
+            } else if (emergencyPhone === phoneNumber) {
+                event.preventDefault();
+                $("<span id='" + warningId + "' class='invalid d-block mt-1'>Emergency contact phone number cannot be the same as primary phone number</span>").insertAfter("#id_emergency_phone");
+            }
+        });
+
         // Email availability checker (unchanged)
         $("#id_email").keyup(function(){
             var email = $(this).val();
@@ -86,6 +129,5 @@
             }
         });
     });
-    
 </script>
 {% endblock custom_js %}

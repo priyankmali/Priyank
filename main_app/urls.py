@@ -190,5 +190,7 @@ urlpatterns = [
 
 
      path('all_employees_schedules/', views.all_employees_schedules, name='all_employees_schedules'),
+
+     path('check-notifications/', views.check_new_notification, name='check_new_notification'),
     
 ]

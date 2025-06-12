@@ -50,6 +50,7 @@
   .clocked-status { font-size: 0.8rem; margin-left: 10px; }
   .clocked-in, .clocked-out { color: white; }
   .late-by-badge { margin-left: 5px; }
+  .badge-present {background-color: #14635D;color: #ffffff;}
   .btn-loading { position: relative; pointer-events: none; }
   .btn-loading::after {
     content: '';
@@ -66,51 +67,7 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Dropdown Notification Styling */
-  .navbar-nav .dropdown-menu {
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-    border: none;
-    border-radius: 10px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-    margin: 15px 10px 0;
-    padding: 10px;
-    position: absolute;
-    min-width: 280px;
-    max-width: 320px;
-    transition: all 0.3s ease;
-  }
-
-  .dropdown-menu-lg {
-    min-width: 260px;
-    max-width: 400px;
-    overflow-y: auto;
-    max-height: 300px;
-    padding: 8px;
-    background-color: transparent;
-    border-radius: 8px;
-  }
-
-  .dropdown-item {
-    padding: 10px 15px;
-    font-size: 14px;
-    border-radius: 6px;
-    white-space: normal;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: background-color 0.3s ease;
-  }
-
-  .dropdown-item:hover {
-    background-color: black;
-    color: white;
-    transform: translateX(5px);
-  }
-
-  .dropdown-divider {
-    background-color: rgba(255, 255, 255, 0.3);
-    margin: 6px 0;
-  }
+  
 
   /* Flatpickr Calendar Styling */
   .flatpickr-calendar {
@@ -179,20 +136,6 @@
     .small-box h3 {
       font-size: 1.6rem;
     }
-    .navbar-nav .dropdown-menu {
-      width: 280px;
-      max-width: calc(100vw - 20px);
-      margin: 10px 8px 0;
-    }
-    .dropdown-menu-lg {
-      min-width: 260px;
-      max-width: calc(100vw - 20px);
-      padding: 6px;
-    }
-    .dropdown-item {
-      padding: 8px 12px;
-      font-size: 13px;
-    }
     .flatpickr-calendar {
       width: 260px;
     }
@@ -232,22 +175,6 @@
       padding: 0.5rem;
       font-size: 13px;
     }
-    .navbar-nav .dropdown-menu {
-      width: 100%;
-      max-width: calc(100vw - 16px);
-      margin: 8px 8px 0;
-      left: 8px;
-      right: 8px;
-    }
-    .dropdown-menu-lg {
-      min-width: 100%;
-      max-width: calc(100vw - 16px);
-      padding: 6px;
-    }
-    .dropdown-item {
-      padding: 6px 10px;
-      font-size: 12px;
-    }
     .flatpickr-calendar {
       width: 240px;
     }
@@ -278,23 +205,6 @@
       padding: 0.25rem 0.5rem;
       font-size: 12px;
     }
-    .navbar-nav .dropdown-menu {
-      width: 100%;
-      max-width: calc(100vw - 16px);
-      margin: 8px 8px 0;
-      left: 8px;
-      right: 8px;
-      box-sizing: border-box;
-    }
-    .dropdown-menu-lg {
-      min-width: 100%;
-      max-width: calc(100vw - 16px);
-      padding: 5px;
-    }
-    .dropdown-item {
-      padding: 6px 8px;
-      font-size: 11px;
-    }
     .flatpickr-calendar {
       width: 220px;
     }
@@ -310,20 +220,6 @@
     .table th, .table td {
       padding: 0.3rem;
       font-size: 11px;
-    }
-    .navbar-nav .dropdown-menu {
-      max-width: calc(100vw - 12px);
-      margin: 6px 6px 0;
-      left: 6px;
-      right: 6px;
-    }
-    .dropdown-menu-lg {
-      max-width: calc(100vw - 12px);
-      padding: 4px;
-    }
-    .dropdown-item {
-      padding: 5px 6px;
-      font-size: 10px;
     }
     .flatpickr-calendar {
       width: 200px;
@@ -348,7 +244,7 @@
             <strong>Status:</strong>
             {% if today_record %}
                 {% if today_record.status == 'present' %}
-                    <span class="badge bg-success">Present</span>
+                    <span class="badge badge-present">Present</span>
                 {% elif today_record.status == 'late' %}
                     <span class="badge bg-orange">Late</span>
                 {% elif today_record.status == 'half_day' %}
@@ -365,7 +261,7 @@
             {% if today_half_day and today_record.status != 'half_day' %}
                 <span class="badge bg-secondary">Half Day</span>
             {% endif %}
-            <span class="badge bg-orange late-by-badge">
+            <span class="badge bg-warning late-by-badge">
                 Late by: {{ today_late_duration_str|default:"0 hours 0 minutes" }}
             </span>
         </p>

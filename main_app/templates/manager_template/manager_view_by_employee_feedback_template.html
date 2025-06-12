@@ -314,7 +314,7 @@ $(document).ready(function() {
         }).get();
         
         $.ajax({
-            url: "{% url 'employee_feedback_message' %}",
+            url: "{% url 'manager_view_by_employee_feedback_message' %}",
             type: 'POST',
             data: {
                 'ids[]': selectedIds,
@@ -356,7 +356,7 @@ $(document).ready(function() {
         var $modal = $('#deleteAllModal');
         
         $.ajax({
-            url: "{% url 'employee_feedback_message' %}",
+            url: "{% url 'manager_view_by_employee_feedback_message' %}",
             type: 'POST',
             data: {
                 'action': 'delete_all',
@@ -411,7 +411,7 @@ $(document).ready(function() {
         console.log('Sending reply for feedback ID:', id); // Debug log
 
         $.ajax({
-            url: "{% url 'employee_feedback_message' %}",
+            url: "{% url 'manager_view_by_employee_feedback_message' %}",
             type: 'POST',
             data: {
                 id: id,
@@ -475,7 +475,7 @@ $(document).ready(function() {
         var page = $(this).data('page');
 
         $.ajax({
-            url: "{% url 'employee_feedback_message' %}",
+            url: "{% url 'manager_view_by_employee_feedback_message' %}",
             type: 'GET',
             data: { page: page },
             headers: { 'X-Requested-With': 'XMLHttpRequest' },

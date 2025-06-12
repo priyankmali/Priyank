@@ -1524,16 +1524,23 @@ def add_employee_by_manager(request):
 
     if request.method == 'POST':
         if employee_form.is_valid():
+            email = employee_form.cleaned_data.get('email')
+            address = employee_form.cleaned_data.get('address')
+            phone_number = employee_form.cleaned_data.get('phone_number')
             first_name = employee_form.cleaned_data.get('first_name')
             last_name = employee_form.cleaned_data.get('last_name')
-            address = employee_form.cleaned_data.get('address')
-            email = employee_form.cleaned_data.get('email')
             gender = employee_form.cleaned_data.get('gender')
             password = employee_form.cleaned_data.get('password')
             division = employee_form.cleaned_data.get('division')
-            designation = employee_form.cleaned_data.get('designation')
-            phone_number = employee_form.cleaned_data.get('phone_number')
             department = employee_form.cleaned_data.get('department')
+            designation = employee_form.cleaned_data.get('designation')
+            
+            date_of_joining = employee_form.cleaned_data.get('date_of_joining')
+            emergency_phone = employee_form.cleaned_data.get('emergency_phone')
+            emergency_name = employee_form.cleaned_data.get('emergency_name')
+            emergency_relationship = employee_form.cleaned_data.get('emergency_relationship')
+            emergency_address = employee_form.cleaned_data.get('emergency_address')
+            
 
             passport_url = None
 
@@ -1563,6 +1570,17 @@ def add_employee_by_manager(request):
                 employee.team_lead = manager  # Assign manager as the team lead
                 employee.phone_number = phone_number
                 employee.designation = designation
+                employee.date_of_joining = date_of_joining
+
+                emergency_contact = {
+                    "name" : emergency_name or "",
+                    "relationship" : emergency_relationship or "",
+                    "phone" : emergency_phone or "",
+                    "address" : emergency_address or ""
+                }
+
+                employee.emergency_contact = emergency_contact
+                
                 employee.save()
 
                 messages.success(request, "Successfully Added Employee")
@@ -1838,9 +1856,10 @@ def send_selected_employee_notification_by_manager(request):
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
 
+
 logger = logging.getLogger(__name__)
 
-@login_required   
+@login_required
 def manager_view_profile(request):
     manager = get_object_or_404(Manager, admin=request.user)
     form = ManagerEditForm(request.POST or None, request.FILES or None, instance=manager)
@@ -1851,23 +1870,28 @@ def manager_view_profile(request):
             if form.is_valid():
                 first_name = form.cleaned_data.get('first_name')
                 last_name = form.cleaned_data.get('last_name')
-                email = form.cleaned_data.get('email')  # Added email field
+                email = form.cleaned_data.get('email')
                 password = form.cleaned_data.get('password') or None
                 address = form.cleaned_data.get('address')
                 gender = form.cleaned_data.get('gender')
                 passport = request.FILES.get('profile_pic') or None
                 admin = manager.admin
                 
+                # Track if any changes were made
+                changes_made = False
+                
                 # Update email
                 if email and email != admin.email:
-                    admin.email = email
+                    admin.email = email.lower()
                     logger.info(f"Email updated for user {admin.username} to {email}")
+                    changes_made = True
                 
                 # Update password only if provided and non-empty
                 if password and password.strip():
                     admin.set_password(password)
-                    update_session_auth_hash(request, admin)  # Prevent session termination
+                    update_session_auth_hash(request, admin)
                     logger.info(f"Password updated for user {admin.username}, session updated")
+                    changes_made = True
                 
                 if passport is not None:
                     fs = FileSystemStorage()
@@ -1876,17 +1900,33 @@ def manager_view_profile(request):
                     passport_url = fs.url(filename)
                     admin.profile_pic = passport_url
                     logger.info(f"Profile picture updated for user {admin.username}: {passport_url}")
+                    changes_made = True
                 
-                admin.first_name = first_name
-                admin.last_name = last_name
-                admin.address = address
-                admin.gender = gender
-                admin.save()
-                manager.save()
+                # Update other fields if changed
+                if admin.first_name != first_name:
+                    admin.first_name = first_name
+                    changes_made = True
+                if admin.last_name != last_name:
+                    admin.last_name = last_name
+                    changes_made = True
+                if admin.address != address:
+                    admin.address = address
+                    changes_made = True
+                if admin.gender != gender:
+                    admin.gender = gender
+                    changes_made = True
                 
-                messages.success(request, "Profile updated successfully!")
-                logger.info(f"Profile update successful for user {admin.username}")
-                return redirect(reverse('manager_view_profile'))
+                # Save only if changes were made
+                if changes_made:
+                    admin.save()
+                    manager.save()
+                    messages.success(request, "Profile updated successfully!")
+                    logger.info(f"Profile update successful for user {admin.username}")
+                    return redirect(reverse('manager_view_profile'))
+                else:
+                    
+                    logger.info(f"No changes made for user {admin.username}")
+                    return redirect(reverse('manager_view_profile'))
             else:
                 messages.error(request, "Invalid Data Provided")
                 logger.warning(f"Invalid form data for user {request.user.username}")
@@ -1897,6 +1937,7 @@ def manager_view_profile(request):
             return render(request, "manager_template/manager_view_profile.html", context)
 
     return render(request, "manager_template/manager_view_profile.html", context)
+
 
 
 @login_required   

@@ -407,7 +407,7 @@
                                                 {% endif %}
                                             </label>
                                             {% if field.name == 'email' %}
-                                                <input type="email" name="email" id="{{ field.id_for_label }}" class="form-control" value="{{ user_object.email }}" required>
+                                                <input type="email" name="email" id="{{ field.id_for_label }}" class="form-control" value="{{ user_object.email }} {% if request.user.user_type == '1' or '2' %} {{ user_object.admin.email }} {% endif %} " required>
                                             {% else %}
                                                 {{ field }}
                                             {% endif %}

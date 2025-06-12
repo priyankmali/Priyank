@@ -34,6 +34,9 @@ from django.contrib.auth import update_session_auth_hash
 import logging
 from django.utils.text import get_valid_filename
 from django.contrib.auth import get_user_model 
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+
 
 LOCATION_CHOICES = (
     ("Main Room" , "Main Room"),
@@ -309,63 +312,84 @@ def add_employee(request):
     return render(request, 'ceo_template/add_employee_template.html', context)
 
 
+
 logger = logging.getLogger(__name__)
 
 @login_required
 def admin_view_profile(request):
     admin = get_object_or_404(Admin, admin=request.user)
     form = AdminForm(request.POST or None, request.FILES or None, instance=admin)
-    context = {
-        'form': form,
-        'page_title': 'View/Update Profile',
-        'user_object': request.user,
-    }
-
+    context = {'form': form, 'page_title': 'View/Update Profile', 'user_object': admin.admin}
+    
     if request.method == 'POST':
         try:
             if form.is_valid():
-                user = request.user
-                cleaned_data = form.cleaned_data
-
-                # Update user fields
-                user.first_name = cleaned_data.get('first_name')
-                user.last_name = cleaned_data.get('last_name')
-                user.email = cleaned_data.get('email').lower()
-                user.address = cleaned_data.get('address')
-                user.gender = cleaned_data.get('gender')
-
-                # Update password if provided
-                password_changed = False
-                if cleaned_data.get('password'):
-                    user.set_password(cleaned_data['password'])
-                    password_changed = True
-                    user.save()
-                    logger.info(f"Password updated for user {user.username}")
+                first_name = form.cleaned_data.get('first_name')
+                last_name = form.cleaned_data.get('last_name')
+                email = form.cleaned_data.get('email')
+                password = form.cleaned_data.get('password') or None
+                address = form.cleaned_data.get('address')
+                gender = form.cleaned_data.get('gender')
+                profile_pic = request.FILES.get('profile_pic') or None
+                user = admin.admin
+                
+                # Track if any changes were made
+                changes_made = False
+                
+                # Update email
+                if email and email != user.email:
+                    user.email = email.lower()
+                    logger.info(f"Email updated for user {user.username} to {email}")
+                    changes_made = True
+                
+                # Update password only if provided and non-empty
+                if password and password.strip():
+                    user.set_password(password)
                     update_session_auth_hash(request, user)
-                    logger.info(f"Session updated for user {user.username} after password change")
-                else:
-                    user.save()
-
-                # Handle profile picture
-                profile_pic = cleaned_data.get('profile_pic')
-                if profile_pic:
-                    fs = FileSystemStorage()
+                    logger.info(f"Password updated for user {user.username}, session updated")
+                    changes_made = True
+                
+                if profile_pic is not None:
                     safe_filename = get_valid_filename(profile_pic.name)
-                    filename = fs.save(safe_filename, profile_pic)
-                    user.profile_pic = fs.url(filename)
-                    logger.info(f"Profile picture updated for user {user.username}: {user.profile_pic}")
+                    filename = default_storage.save(safe_filename, ContentFile(profile_pic.read()))
+                    profile_pic_url = default_storage.url(filename)
+                    user.profile_pic = profile_pic_url
+                    logger.info(f"Profile picture updated for user {user.username}: {profile_pic_url}")
+                    changes_made = True
+                
+                # Update other fields if changed
+                if user.first_name != first_name:
+                    user.first_name = first_name
+                    changes_made = True
+                if user.last_name != last_name:
+                    user.last_name = last_name
+                    changes_made = True
+                if user.address != address:
+                    user.address = address
+                    changes_made = True
+                if user.gender != gender:
+                    user.gender = gender
+                    changes_made = True
+                
+                # Save only if changes were made
+                if changes_made:
                     user.save()
-
-                admin.save()
-
-                messages.success(request, "Profile updated successfully!")
-                logger.info(f"Profile update successful for user {user.username}, session should persist")
-                return redirect('admin_view_profile')
+                    admin.save()
+                    messages.success(request, "Profile updated successfully!")
+                    logger.info(f"Profile update successful for user {user.username}")
+                    return redirect(reverse('admin_view_profile'))
+                else:
+                    
+                    logger.info(f"No changes made for user {user.username}")
+                    return redirect(reverse('admin_view_profile'))
             else:
-                messages.error(request, "Invalid data provided. Please check the form.")
+                messages.error(request, "Invalid Data Provided")
+                logger.warning(f"Invalid form data for user {request.user.username}")
+                return render(request, "ceo_template/admin_view_profile.html", context)
         except Exception as e:
             logger.error(f"Error updating profile for user {request.user.username}: {str(e)}")
-            messages.error(request, f"Error occurred while updating profile: {str(e)}")
+            messages.error(request, "Error Occurred While Updating Profile: " + str(e))
+            return render(request, "ceo_template/admin_view_profile.html", context)
 
     return render(request, "ceo_template/admin_view_profile.html", context)
     
@@ -381,14 +405,18 @@ def add_division(request):
     if request.method == 'POST':
         if form.is_valid():
             name = form.cleaned_data.get('name')
-            try:
-                division = Division()
-                division.name = name
-                division.save()
-                messages.success(request, "Successfully Added")
-                return redirect(reverse('manage_division'))
-            except:
-                messages.error(request, "Could Not Add")
+            
+            if Division.objects.filter(name__iexact=name).exists():
+                messages.error(request, "This department already exist")
+            else:
+                try:
+                    division = Division()
+                    division.name = name
+                    division.save()
+                    messages.success(request, "Successfully Added")
+                    return redirect(reverse('manage_division'))
+                except:
+                    messages.error(request, "Could Not Add")
         else:
             messages.error(request, "Could Not Add")
     return render(request, 'ceo_template/add_division_template.html', context)
@@ -405,16 +433,19 @@ def add_department(request):
         if form.is_valid():
             name = form.cleaned_data.get('name')
             division = form.cleaned_data.get('division')
-            try:
-                department = Department()
-                department.name = name
-                department.division = division
-                department.save()
-                messages.success(request, "Successfully Added")
-                return redirect(reverse('manage_department'))
+            if Department.objects.filter(name__iexact=name, division=division):
+                messages.error(request, "This division already exist") 
+            else:
+                try:
+                    department = Department()
+                    department.name = name
+                    department.division = division
+                    department.save()
+                    messages.success(request, "Successfully Added")
+                    return redirect(reverse('manage_department'))
 
-            except Exception as e:
-                messages.error(request, "Could Not Add " + str(e))
+                except Exception as e:
+                    messages.error(request, "Could Not Add " + str(e))
         else:
             messages.error(request, "Fill Form Properly")
 
@@ -1554,9 +1585,14 @@ def delete_division(request, division_id):
 
 @login_required
 def delete_department(request, department_id):
-    department = get_object_or_404(Department, id=department_id)
-    department.delete()
-    messages.success(request, "Department deleted successfully!")
+    try:
+        department = get_object_or_404(Department, id=department_id)
+        department.delete()
+        messages.success(request, "Department deleted successfully!")
+        return redirect(reverse('manage_department'))
+    except Exception:
+        messages.error(
+            request, "Sorry, some employees are assigned to this department already. Kindly change the affected employee division and try again")
     return redirect(reverse('manage_department'))
 
 
@@ -1896,40 +1932,6 @@ def generate_individual_report(user, year, month):
         'total_working_days': working_days,
     }
 
-# @login_required
-# def admin_view_attendance(request):
-#     current_date = datetime.now()
-#     current_year = current_date.year
-#     current_month = current_date.month
-
-#     years = [current_year + i for i in range(5)]
-#     months = [
-#         (f"{i:02}", datetime(current_year, i, 1).strftime('%B')) 
-#         for i in range(1, 13)
-#     ]
-#     managers = None
-#     if hasattr(request.user, 'manager'):
-#         manager = request.user.manager
-#         departments = Department.objects.filter(division=manager.division)
-#         employees = Employee.objects.filter(department__in=departments)
-#         managers = Manager.objects.all()
-#     else:
-#         departments = Department.objects.all()
-#         employees = Employee.objects.all()
-#         managers = Manager.objects.all()
-
-#     context = {
-#         'departments': departments,
-#         'employees': employees,
-#         'managers': managers,
-#         'page_title': 'View Attendance',
-#         'months': months,
-#         'years': years,
-#         'current_year': current_year,
-#         'current_month': current_month
-#     }
-#     return render(request, 'ceo_template/admin_view_attendance.html', context)
-
 
 
 
@@ -1938,13 +1940,17 @@ def admin_todays_attendance(request):
     if not request.user.is_superuser:
         return redirect('admin_home')
     
-    today = timezone.now()
+    today = timezone.now().date()  # Use .date() to match DateField
     
-    # Get all employees
+    # Get attendance records for employees only (user_type="3")
     today_attendances = AttendanceRecord.objects.filter(
-        date=today
+        date=today,
+        user__user_type="3"  # Only include employees
     ).select_related('user__employee__department').order_by('-clock_in')
-
+    
+    # Debug: Print all attendance records for today
+    all_attendances = AttendanceRecord.objects.filter(date=today)
+    
     # Pagination
     page = request.GET.get('page', 1)
     paginator = Paginator(today_attendances, 10)
@@ -1957,7 +1963,7 @@ def admin_todays_attendance(request):
         page_obj = paginator.page(paginator.num_pages)
 
     context = {
-        'page_title': "Today's Clocked-In Employees (All)",
+        'page_title': "Today's Clocked-In Employees",
         'page_obj': page_obj,
         'current_date': today.strftime("%Y-%m-%d"),
         'total_clocked_in': today_attendances.values('user').distinct().count()

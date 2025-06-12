@@ -42,29 +42,103 @@
         const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
         return re.test(String(email).toLowerCase());
     }
+
     $(document).ready(function(){
+        // Phone number and emergency contact input filter with validation
+        $("#id_phone_number, #id_emergency_phone").on("input", function() {
+            const original = this.value;
+            const digitsOnly = original.replace(/\D/g, '');
+            const warningId = this.id + "_warning";
+            const isEmergencyPhone = this.id === "id_emergency_phone";
+            const phoneNumber = $("#id_phone_number").val();
+            const emergencyPhone = $("#id_emergency_phone").val();
+
+            // Remove existing warnings
+            $("#" + warningId).remove();
+
+            // Check for non-digits
+            if (original !== digitsOnly) {
+                $("<span id='" + warningId + "' class='invalid d-block mt-1'>Only digits are allowed</span>").insertAfter(this);
+                this.value = digitsOnly;
+                return;
+            }
+
+            // Update field value
+            this.value = digitsOnly;
+
+            // Additional validation for emergency phone
+            if (isEmergencyPhone) {
+                if (digitsOnly.length !== 10) {
+                    $("<span id='" + warningId + "' class='invalid d-block mt-1'>Emergency contact phone number must be exactly 10 digits</span>").insertAfter(this);
+                } else if (digitsOnly === phoneNumber) {
+                    $("<span id='" + warningId + "' class='invalid d-block mt-1'>Emergency contact phone number cannot be the same as primary phone number</span>").insertAfter(this);
+                } else {
+                    $("<span id='" + warningId + "' class='valid d-block mt-1'>Valid emergency contact phone number</span>").insertAfter(this);
+                }
+            } else {
+                // Validation for primary phone number
+                if (digitsOnly.length > 0 && digitsOnly.length !== 10) {
+                    $("<span id='" + warningId + "' class='invalid d-block mt-1'>Phone number must be exactly 10 digits</span>").insertAfter(this);
+                } else if (digitsOnly.length === 10) {
+                    $("<span id='" + warningId + "' class='valid d-block mt-1'>Valid phone number</span>").insertAfter(this);
+                }
+            }
+        });
+
+        // Prevent form submission if phone_number or emergency_phone is invalid
+        $("#profile-form").on("submit", function(event) {
+            const phoneNumber = $("#id_phone_number").val();
+            const emergencyPhone = $("#id_emergency_phone").val();
+            const phoneWarningId = "id_phone_number_warning";
+            const emergencyWarningId = "id_emergency_phone_warning";
+
+            // Remove existing warnings
+            $("#" + phoneWarningId).remove();
+            $("#" + emergencyWarningId).remove();
+
+            // Validate phone_number
+            if (!phoneNumber) {
+                event.preventDefault();
+                $("<span id='" + phoneWarningId + "' class='invalid d-block mt-1'>Phone number is required</span>").insertAfter("#id_phone_number");
+            } else if (phoneNumber.length !== 10) {
+                event.preventDefault();
+                $("<span id='" + phoneWarningId + "' class='invalid d-block mt-1'>Phone number must be exactly 10 digits</span>").insertAfter("#id_phone_number");
+            }
+
+            // Validate emergency_phone
+            if (!emergencyPhone) {
+                event.preventDefault();
+                $("<span id='" + emergencyWarningId + "' class='invalid d-block mt-1'>Emergency contact phone number is required</span>").insertAfter("#id_emergency_phone");
+            } else if (emergencyPhone.length !== 10) {
+                event.preventDefault();
+                $("<span id='" + emergencyWarningId + "' class='invalid d-block mt-1'>Emergency contact phone number must be exactly 10 digits</span>").insertAfter("#id_emergency_phone");
+            } else if (emergencyPhone === phoneNumber) {
+                event.preventDefault();
+                $("<span id='" + emergencyWarningId + "' class='invalid d-block mt-1'>Emergency contact phone number cannot be the same as primary phone number</span>").insertAfter("#id_emergency_phone");
+            }
+        });
+
+        // Email availability checker (unchanged)
         $("#id_email").keyup(function(){
-            
-            var email = $(this).val()
+            var email = $(this).val();
             if (validateEmail(email)){
-            $.ajax({
-                url: "{% url 'check_email_availability' %}",
-                type: 'POST',
-                data:{email:email}
-            }).done(function(response){
-                if (response == "True"){
-                    $(".email_error").remove()
-                    $("<span class='invalid email_error'>Email Address Already Exist</span>").insertAfter("#id_email");
-                }
-                else{
-                    $(".email_error").remove()
-                    $("<span class='valid email_error'>Email Address Available</span>").insertAfter("#id_email");
-                }
-            }).fail(function(response){
-                $("<span class='alert alert-warning'>Server Could Not Process This</span>").insertAfter("#id_email");
-            })
-        }
-        })
+                $.ajax({
+                    url: "{% url 'check_email_availability' %}",
+                    type: 'POST',
+                    data:{email:email}
+                }).done(function(response){
+                    $(".email_error").remove();
+                    if (response == "True"){
+                        $("<span class='invalid email_error'>Email Address Already Exist</span>").insertAfter("#id_email");
+                    } else {
+                        $("<span class='valid email_error'>Email Address Available</span>").insertAfter("#id_email");
+                    }
+                }).fail(function(){
+                    $(".email_error").remove();
+                    $("<span class='alert alert-warning'>Server Could Not Process This</span>").insertAfter("#id_email");
+                });
+            }
+        });
     });
 </script>
 {% endblock custom_js %}

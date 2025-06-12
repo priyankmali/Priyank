@@ -50,11 +50,10 @@ class AdminForm(CustomUserForm):
         fields = CustomUserForm.Meta.fields
 
 
-
 class EmployeeForm(CustomUserForm):
+    emergency_phone = forms.CharField(label="Emergency Contact Phone", max_length=10, required=False)  
     emergency_name = forms.CharField(label="Emergency Contact Name", required=False)
     emergency_relationship = forms.CharField(label="Emergency Contact Relationship", required=False)
-    emergency_phone = forms.CharField(label="Emergency Contact Phone", max_length=10, required=False)
     emergency_address = forms.CharField(label="Emergency Contact Address", required=False, widget=forms.Textarea)
     date_of_joining = forms.DateField(
         label="Date of Joining",
@@ -64,7 +63,6 @@ class EmployeeForm(CustomUserForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         # Initialize emergency contact fields
         if self.instance and self.instance.emergency_contact:
             ec = self.instance.emergency_contact
@@ -72,10 +70,31 @@ class EmployeeForm(CustomUserForm):
             self.fields['emergency_relationship'].initial = ec.get('relationship', '')
             self.fields['emergency_phone'].initial = ec.get('phone', '')
             self.fields['emergency_address'].initial = ec.get('address', '')
-
         # Initialize date_of_joining field
         if self.instance and self.instance.pk and self.instance.date_of_joining:
             self.fields['date_of_joining'].initial = self.instance.date_of_joining
+
+    def clean_emergency_phone(self):
+        emergency_phone = self.cleaned_data.get('emergency_phone')
+        phone_number = self.cleaned_data.get('phone_number')
+    
+        
+        if not emergency_phone:
+            raise ValidationError("Emergency contact phone number is required.")
+        
+        # Check for digits only
+        if not emergency_phone.isdigit():
+            raise ValidationError("Emergency contact phone number must contain only digits.")
+        
+        # Check length (assuming 10 digits for standard phone number)
+        if len(emergency_phone) != 10:
+            raise ValidationError("Emergency contact phone number must be exactly 10 digits.")
+        
+        # Check if it matches the primary phone number
+        if emergency_phone == phone_number:
+            raise ValidationError("Emergency contact phone number cannot be the same as the primary phone number.")
+        
+        return emergency_phone
 
     def clean_date_of_joining(self):
         date_of_joining = self.cleaned_data.get('date_of_joining')
@@ -85,7 +104,6 @@ class EmployeeForm(CustomUserForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-
         # Save emergency contact details
         instance.emergency_contact = {
             'name': self.cleaned_data.get('emergency_name'),
@@ -93,7 +111,6 @@ class EmployeeForm(CustomUserForm):
             'phone': self.cleaned_data.get('emergency_phone'),
             'address': self.cleaned_data.get('emergency_address'),
         }
-
         # Save date_of_joining
         date_of_joining = self.cleaned_data.get('date_of_joining')
         if date_of_joining:
@@ -118,9 +135,9 @@ class EmployeeForm(CustomUserForm):
         ]
 
 class ManagerForm(CustomUserForm):
+    emergency_phone = forms.CharField(label="Emergency Contact Phone", max_length=10, required=False)
     emergency_name = forms.CharField(label="Emergency Contact Name", required=False)
     emergency_relationship = forms.CharField(label="Emergency Contact Relationship", required=False)
-    emergency_phone = forms.CharField(label="Emergency Contact Phone", max_length=10, required=False)
     emergency_address = forms.CharField(label="Emergency Contact Address", required=False, widget=forms.Textarea)
     date_of_joining = forms.DateField(
         label="Date of Joining",
@@ -130,33 +147,42 @@ class ManagerForm(CustomUserForm):
 
     def __init__(self, *args, **kwargs):
         super(ManagerForm, self).__init__(*args, **kwargs)
-        # Only set initial values if the instance exists and has an associated admin
         if self.instance and self.instance.pk and hasattr(self.instance, 'admin'):
             self.fields['email'].initial = self.instance.admin.email
-            self.fields['password'].required = False  # Password is optional for updates
-
+            self.fields['password'].required = False
         if self.instance and self.instance.emergency_contact:
             ec = self.instance.emergency_contact
             self.fields['emergency_name'].initial = ec.get('name', '')
             self.fields['emergency_relationship'].initial = ec.get('relationship', '')
             self.fields['emergency_phone'].initial = ec.get('phone', '')
             self.fields['emergency_address'].initial = ec.get('address', '')
-
         if self.instance and hasattr(self.instance, 'date_of_joining'):
             self.fields['date_of_joining'].initial = self.instance.date_of_joining
 
+    def clean_emergency_phone(self):
+        emergency_phone = self.cleaned_data.get('emergency_phone')
+        phone_number = self.cleaned_data.get('phone_number')
+        if not emergency_phone:
+            raise ValidationError("Emergency contact phone number is required.")
+        if not emergency_phone.isdigit():
+            raise ValidationError("Emergency contact phone number must contain only digits.")
+        if len(emergency_phone) != 10:
+            raise ValidationError("Emergency contact phone number must be exactly 10 digits.")
+        if emergency_phone == phone_number:
+            raise ValidationError("Emergency contact phone number cannot be the same as the primary phone number.")
+        return emergency_phone
+
     def save(self, commit=True):
         instance = super().save(commit=False)
-        # Update or create the admin user
         if hasattr(instance, 'admin'):
             admin = instance.admin
         else:
-            # Create a new CustomUser if no admin exists (new manager)
             admin = CustomUser(
                 email=self.cleaned_data.get('email'),
                 first_name=self.cleaned_data.get('first_name'),
                 last_name=self.cleaned_data.get('last_name'),
-                user_type=2,  # Manager
+                phone_number=self.cleaned_data.get('phone_number'),  # Save phone_number
+                user_type=2,
             )
             if self.cleaned_data.get('password') and self.cleaned_data.get('password').strip():
                 admin.set_password(self.cleaned_data.get('password'))
@@ -166,6 +192,7 @@ class ManagerForm(CustomUserForm):
         admin.first_name = self.cleaned_data.get('first_name')
         admin.last_name = self.cleaned_data.get('last_name')
         admin.email = self.cleaned_data.get('email')
+        admin.phone_number = self.cleaned_data.get('phone_number')  # Update phone_number
         if self.cleaned_data.get('password') and self.cleaned_data.get('password').strip():
             admin.set_password(self.cleaned_data.get('password'))
         admin.save()
@@ -184,7 +211,10 @@ class ManagerForm(CustomUserForm):
 
     class Meta(CustomUserForm.Meta):
         model = Manager
-        fields = CustomUserForm.Meta.fields + ['division', 'department', 'date_of_joining']
+        fields = CustomUserForm.Meta.fields + [
+            'division', 'department','phone_number', 'date_of_joining',
+           
+        ]
 
 
 

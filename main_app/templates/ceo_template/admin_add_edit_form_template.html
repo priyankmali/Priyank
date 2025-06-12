@@ -209,6 +209,11 @@
             transform: scale(1.1);
         }
 
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .spinner {
             position: absolute;
             top: 50%;
@@ -391,10 +396,10 @@
                                     <img class="modal-image" id="enlargedPhoto" alt="Enlarged Profile Picture">
                                 </div>
                                 <div class="modal-footer">
-                                    <button class="action-button" title="Download" onclick="downloadImage()">
+                                    <button class="action-button" title="Download" id="downloadButton">
                                         <i class="fas fa-download"></i>
                                     </button>
-                                    <button class="action-button" title="Share" onclick="shareImage()">
+                                    <button class="action-button" title="Share" id="shareButton">
                                         <i class="fas fa-share-alt"></i>
                                     </button>
                                 </div>
@@ -515,6 +520,8 @@
             const confirmYes = document.getElementById('confirmYes');
             const confirmNo = document.getElementById('confirmNo');
             const profileForm = document.getElementById('profile-form');
+            const downloadButton = document.getElementById('downloadButton');
+            const shareButton = document.getElementById('shareButton');
 
             // Debug: Log DOM elements
             console.log('Password toggle element:', passwordToggle);
@@ -553,7 +560,6 @@
                 confirmationOverlay.classList.add('show');
                 confirmationPopup.classList.add('show');
                 document.body.style.overflow = 'hidden';
-                // Ensure the popup is centered by adjusting its position
                 confirmationPopup.style.top = '50%';
                 confirmationPopup.style.left = '50%';
                 confirmationPopup.style.transform = 'translate(-50%, -50%)';
@@ -613,27 +619,87 @@
                 enlargedPhoto.style.display = 'block';
             }
 
-            function downloadImage() {
-                if (!enlargedPhoto.src) return;
-                const link = document.createElement('a');
-                link.href = enlargedPhoto.src;
-                link.download = 'profile-picture-' + new Date().getTime() + '.jpg';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            function showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'alert alert-error';
+                errorDiv.textContent = message;
+                profileModal.querySelector('.modal-container').prepend(errorDiv);
+                setTimeout(() => errorDiv.remove(), 3000);
             }
 
-            function shareImage() {
-                if (navigator.share) {
-                    navigator.share({
-                        title: 'Profile Picture',
-                        text: 'Check out this profile picture',
-                        url: enlargedPhoto.src
-                    }).catch(err => {
-                        console.error('Error sharing:', err);
-                    });
-                } else {
-                    prompt('Copy this link to share:', enlargedPhoto.src);
+            async function downloadImage() {
+                if (!enlargedPhoto.src) {
+                    showError('No image available to download.');
+                    return;
+                }
+
+                try {
+                    downloadButton.disabled = true;
+                    spinner.style.display = 'block';
+
+                    // Fetch the image as a blob to handle CORS
+                    const response = await fetch(enlargedPhoto.src, { mode: 'cors' });
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch image');
+                    }
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'profile-picture-' + new Date().getTime() + '.jpg';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    console.error('Download error:', error);
+                    showError('Failed to download image. Please try again.');
+                } finally {
+                    downloadButton.disabled = false;
+                    spinner.style.display = 'none';
+                }
+            }
+
+            async function shareImage() {
+                if (!enlargedPhoto.src) {
+                    showError('No image available to share.');
+                    return;
+                }
+
+                try {
+                    shareButton.disabled = true;
+                    spinner.style.display = 'block';
+
+                    // Check if Web Share API is supported
+                    if (navigator.share && navigator.canShare) {
+                        const response = await fetch(enlargedPhoto.src, { mode: 'cors' });
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch image');
+                        }
+                        const blob = await response.blob();
+                        const file = new File([blob], 'profile-picture.jpg', { type: blob.type });
+                        const shareData = {
+                            title: 'Profile Picture',
+                            text: 'Check out my profile picture!',
+                            files: [file]
+                        };
+                        if (navigator.canShare(shareData)) {
+                            await navigator.share(shareData);
+                        } else {
+                            throw new Error('Sharing files not supported');
+                        }
+                    } else {
+                        // Fallback: Copy URL to clipboard
+                        await navigator.clipboard.writeText(enlargedPhoto.src);
+                        showError('Share API not supported. Image URL copied to clipboard.');
+                    }
+                } catch (error) {
+                    console.error('Share error:', error);
+                    showError('Failed to share image. Image URL copied to clipboard.');
+                    await navigator.clipboard.writeText(enlargedPhoto.src);
+                } finally {
+                    shareButton.disabled = false;
+                    spinner.style.display = 'none';
                 }
             }
 
@@ -661,7 +727,12 @@
                 spinner.style.display = 'none';
                 enlargedPhoto.src = "{% static 'dist/img/avatar-placeholder.jpeg' %}";
                 enlargedPhoto.style.display = 'block';
+                showError('Failed to load image.');
             });
+
+            // Add event listeners for buttons
+            downloadButton.addEventListener('click', downloadImage);
+            shareButton.addEventListener('click', shareImage);
         });
     </script>
 </body>

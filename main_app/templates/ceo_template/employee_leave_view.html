@@ -167,8 +167,19 @@
 {% endblock content %}
 
 {% block custom_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
 <script>
 $(document).ready(function() {
+    // Toastr configuration
+    toastr.options = {
+        "closeButton": true,
+        "progressBar": true,
+        "positionClass": "toast-top-right",
+        "timeOut": "3000"
+    };
+
     // Handle pagination clicks
     $(document).on('click', '.pagination-link', function(e) {
         e.preventDefault();
@@ -194,8 +205,8 @@ $(document).ready(function() {
                 window.history.pushState({}, '', '?page=' + page);
             },
             error: function(xhr, status, error) {
+                toastr.error('Error loading page. Please try again.');
                 console.error('Pagination AJAX failed:', error);
-                alert('Error loading page. Please try again.');
             }
         });
     });
@@ -228,20 +239,28 @@ $(document).ready(function() {
                     status: status,
                     csrfmiddlewaretoken: '{{ csrf_token }}'
                 },
+                beforeSend: function() {
+                    $('#reply_btn').prop('disabled', true);
+                },
                 success: function(response) {
                     if (response == "True") {
-                        alert("Leave response has been saved.");
-                        location.reload();
+                        toastr.success("Leave response has been saved!");
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
                     } else {
-                        alert("Reply could not be sent.");
+                        toastr.error("Reply could not be sent.");
                     }
                 },
                 error: function() {
-                    alert("An error occurred.");
+                    toastr.error("An error occurred while processing your request.");
+                },
+                complete: function() {
+                    $('#reply_btn').prop('disabled', false);
                 }
             });
         } else {
-            alert("Please select a valid response.");
+            toastr.warning("Please select a valid response.");
         }
     });
 });

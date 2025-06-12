@@ -38,7 +38,7 @@ from zoneinfo import ZoneInfo
 from datetime import datetime, timedelta, time
 from calendar import monthrange
 import logging
-
+from django.utils.timezone import make_aware, now
 
 logger = logging.getLogger(__name__)
 
@@ -701,6 +701,9 @@ def employee_home(request):
     logger.debug(f"Rendering dashboard with context: Present Days={present_days}, Absent Days={absent_days}")
     return render(request, 'employee_template/home_content.html', context)
 
+
+
+
 @login_required
 def leave_balance(request):
     employee = get_object_or_404(Employee, admin=request.user)
@@ -745,6 +748,11 @@ def leave_balance(request):
             months_in_year = end_month - start_month + 1
             yearly_total_allocated_leaves = months_in_year * 1.0  # 1 leave per month
 
+            # Adjust yearly total allocated leaves by subtracting available leaves for current month if fully used
+            current_month_balance = leave_balances.filter(month=current_month).first()
+            if current_month_balance and current_month_balance.total_available_leaves() == 0.0:
+                yearly_total_allocated_leaves = max(0.0, yearly_total_allocated_leaves - (current_month_balance.allocated_leaves + current_month_balance.carried_forward))
+
         # Process monthly leave balances for display in the table
         for month in range(1, 13):
             if current_year < joining_year or (current_year == joining_year and month < joining_month):
@@ -755,6 +763,13 @@ def leave_balance(request):
                 if not balance:
                     balance = LeaveBalance.create_balance(employee, current_year, month)
             if balance:
+                # Validate used_leaves for the current month
+                if month == current_month:
+                    max_used_leaves = balance.allocated_leaves + balance.carried_forward
+                    if balance.used_leaves > max_used_leaves:
+                        balance.used_leaves = max_used_leaves
+                        balance.save()
+                
                 yearly_leave_data.append({
                     'month': datetime(current_year, month, 1).strftime('%B'),
                     'allocated_leaves': balance.allocated_leaves,
@@ -946,98 +961,111 @@ def employee_fcmtoken(request):
     except Exception as e:
         return HttpResponse("False")
 
+logger = logging.getLogger(__name__)
 
-@login_required   
+@login_required
 @csrf_exempt
 def employee_view_attendance(request):
-    employee = get_object_or_404(Employee, admin=request.user)
-    
-    if request.method == 'GET':
-        division = get_object_or_404(Division, id=employee.division.id)
-        context = {
-            'departments': Department.objects.filter(division=division),
-            'page_title': 'View Attendance',
-            'default_start': (timezone.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
-            'default_end': timezone.now().strftime('%Y-%m-%d')
-        }
-        return render(request, 'employee_template/employee_view_attendance.html', context)
+    try:
+        employee = get_object_or_404(Employee, admin=request.user)
+        
+        if request.method == 'GET':
+            division = get_object_or_404(Division, id=employee.division.id)
+            context = {
+                'departments': Department.objects.filter(division=division),
+                'page_title': 'View Attendance',
+                'default_start': (now() - timedelta(days=7)).strftime('%Y-%m-%d'),
+                'default_end': now().strftime('%Y-%m-%d')  # Ensure today is included
+            }
+            return render(request, 'employee_template/employee_view_attendance.html', context)
 
-    elif request.method == 'POST':
-        try:
-            start_date = request.POST.get('start_date')
-            end_date = request.POST.get('end_date')
+        elif request.method == 'POST':
+            start_date_str = request.POST.get('start_date')
+            end_date_str = request.POST.get('end_date')
             page = request.POST.get('page', 1)
 
-            if not all([start_date, end_date]):
-                return JsonResponse({'error': 'Missing required parameters'}, status=400)
-            
+            logger.info(f"POST params: start_date={start_date_str}, end_date={end_date_str}, page={page}")
+
+            if not all([start_date_str, end_date_str]):
+                return JsonResponse({'error': 'Missing start_date or end_date'}, status=400)
+
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
+
             if start_date > end_date:
                 return JsonResponse({'error': 'Start date cannot be after end date'}, status=400)
-            
+
+            # Include records with clock_out=None for ongoing sessions
             all_records = AttendanceRecord.objects.filter(
                 user=request.user,
                 date__range=(start_date, end_date)
-            ).exclude(clock_in=None).exclude(clock_out=None).order_by('date', 'clock_in')
+            ).exclude(clock_in=None).order_by('date', 'clock_in')
+
+            logger.info(f"Records found: {all_records.count()}")
 
             daily_summaries = {}
             for record in all_records:
                 date_str = record.date.strftime('%Y-%m-%d')
-                
                 if date_str not in daily_summaries:
                     daily_summaries[date_str] = {
                         'date': date_str,
-                        'first_clock_in': record.clock_in,
-                        'last_clock_out': record.clock_out,
+                        'first_clock_in': make_aware(record.clock_in) if record.clock_in and not record.clock_in.tzinfo else record.clock_in,
+                        'last_clock_out': make_aware(record.clock_out) if record.clock_out and not record.clock_out.tzinfo else record.clock_out,
                         'status': record.status,
                         'total_worked': record.total_worked or timedelta(),
                         'records_count': 1
                     }
                 else:
                     day = daily_summaries[date_str]
-
-                    if record.clock_in and record.clock_in < day['first_clock_in']:
-                        day['first_clock_in'] = record.clock_in
-
-                    if record.clock_out and record.clock_out > day['last_clock_out']:
-                        day['last_clock_out'] = record.clock_out
-
+                    if record.clock_in and (not day['first_clock_in'] or record.clock_in < day['first_clock_in']):
+                        day['first_clock_in'] = make_aware(record.clock_in) if not record.clock_in.tzinfo else record.clock_in
+                    if record.clock_out and (not day['last_clock_out'] or record.clock_out > day['last_clock_out']):
+                        day['last_clock_out'] = make_aware(record.clock_out) if not record.clock_out.tzinfo else record.clock_out
                     if record.status == 'late':
                         day['status'] = 'late'
-
                     if record.total_worked:
                         day['total_worked'] += record.total_worked
-
                     day['records_count'] += 1
-            
+
             json_data = []
             for date_str, day in sorted(daily_summaries.items(), reverse=True):
-                # Define lunch break period
                 lunch_start = make_aware(datetime.combine(datetime.strptime(date_str, '%Y-%m-%d'), time(13, 0)))
                 lunch_end = make_aware(datetime.combine(datetime.strptime(date_str, '%Y-%m-%d'), time(13, 40)))
 
-                # Subtract lunch time if work period spans it
-                if day['first_clock_in'] <= lunch_start and day['last_clock_out'] >= lunch_end:
+                # Adjust total_worked only for completed sessions
+                if day['first_clock_in'] and day['last_clock_out'] and day['first_clock_in'] <= lunch_start and day['last_clock_out'] >= lunch_end:
                     day['total_worked'] -= timedelta(minutes=40)
 
-                # Format total_worked to HHh MMm
                 total_worked_str = '--'
                 if day['total_worked'] and str(day['total_worked']) != '0:00:00':
                     total_seconds = int(day['total_worked'].total_seconds())
                     hours = total_seconds // 3600
                     minutes = (total_seconds % 3600) // 60
                     total_worked_str = f"{hours}h {minutes}m"
+                elif not day['last_clock_out']:  # Ongoing session
+                    current_time = make_aware(now())
+                    if day['first_clock_in'] and current_time > day['first_clock_in']:
+                        worked = current_time - day['first_clock_in']
+                        if day['first_clock_in'] <= lunch_start and current_time >= lunch_end:
+                            worked -= timedelta(minutes=40)
+                        total_seconds = int(worked.total_seconds())
+                        hours = total_seconds // 3600
+                        minutes = (total_seconds % 3600) // 60
+                        total_worked_str = f"{hours}h {minutes}m (ongoing)"
 
                 json_data.append({
                     "date": date_str,
                     "status": day['status'],
-                    "clock_in": (day['first_clock_in']).strftime('%I:%M %p') if day['first_clock_in'] else '--',
-                    "clock_out": (day['last_clock_out']).strftime('%I:%M %p') if day['last_clock_out'] else '--',
+                    "clock_in": day['first_clock_in'].strftime('%I:%M %p') if day['first_clock_in'] else '--',
+                    "clock_out": day['last_clock_out'].strftime('%I:%M %p') if day['last_clock_out'] else 'Ongoing',
                     "total_worked": total_worked_str,
                     "records_count": day['records_count']
                 })
 
-            # Paginate the json_data
-            paginator = Paginator(json_data, 1)  # 5 records per page
+            paginator = Paginator(json_data, 5)
             try:
                 page_obj = paginator.page(page)
             except PageNotAnInteger:
@@ -1046,13 +1074,12 @@ def employee_view_attendance(request):
                 page_obj = paginator.page(paginator.num_pages)
 
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                # Render the full template with paginated data
                 context = {
                     'page_title': 'View Attendance',
-                    'default_start': start_date,
-                    'default_end': end_date,
+                    'default_start': start_date_str,
+                    'default_end': end_date_str,
                     'page_obj': page_obj,
-                    'json_data': page_obj.object_list,  # Pass paginated data
+                    'json_data': page_obj.object_list,
                 }
                 html = render_to_string('employee_template/employee_view_attendance.html', context, request=request)
                 return JsonResponse({
@@ -1067,10 +1094,9 @@ def employee_view_attendance(request):
 
             return JsonResponse({'data': page_obj.object_list}, safe=False)
 
-        except ValueError as e:
-            return JsonResponse({'error': f'Invalid date format: {str(e)}'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+    except Exception as e:
+        logger.error(f"Error in employee_view_attendance: {str(e)}", exc_info=True)
+        return JsonResponse({'error': 'Internal server error. Please try again later.'}, status=500)
 
         
 @login_required   

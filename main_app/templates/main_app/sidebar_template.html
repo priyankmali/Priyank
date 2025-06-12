@@ -461,7 +461,7 @@
                             </p>
                         </a>
                 </li>
-                <li class="nav-item">
+                {% comment %} <li class="nav-item">
                 {% url 'manager_view_by_employee_leave' as manager_view_by_employee_leave %}
 
                     <a href="{% url 'manager_view_by_employee_leave' %}" class="nav-link  {% if manager_view_by_employee_leave == request.path %} active {% endif %}">
@@ -471,7 +471,7 @@
                             
                         </p>
                     </a>
-                </li>
+                </li> {% endcomment %}
                 <li class="nav-item">
                     {% url 'manager_notify_employee' as manager_notify_employee %}
                     <a href="{{manager_notify_employee}}" class="nav-link {% if manager_notify_employee == request.path %} active {% endif %}">
