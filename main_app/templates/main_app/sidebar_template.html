@@ -1,8 +1,105 @@
 {% load static %}
 <aside class="main-sidebar sidebar-dark-primary elevation-4">
+<style>
+    /* Ensure consistent image sizes and circular shape */
+    .brand-image {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .user-panel .image img {
+        width: 35px;
+        height: 35px;
+        object-fit: cover;
+        border-radius: 50%;
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .user-panel {
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+        padding: 10px;
+        border-radius: 5px;
+    }
+
+    .user-panel:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .user-panel:hover .image img {
+        transform: scale(1.1);
+    }
+
+    /* Modal styles for image preview */
+    .image-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    .image-modal-content {
+        max-width: 60%;
+        max-height: 60%;
+        object-fit: contain;
+        border-radius: 10px;
+        border: 2px solid #fff;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
+    }
+
+    .close-modal {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: #fff;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.2s ease-in-out;
+    }
+
+    .close-modal:hover {
+        color: #bbb;
+    }
+
+    .view-profile-button {
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        text-align: center;
+        text-decoration: none;
+        transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .view-profile-button:hover {
+        background-color: #0056b3;
+        transform: translateY(-2px);
+    }
+
+    .view-profile-button:active {
+        transform: translateY(0);
+    }
+</style>
+
 {% if request.user.user_type == '1' %}
     <!-- Brand Logo -->
-    
     <a href="#" class="brand-link">
         <img src="{% static 'dist/img/koli-logo.svg' %}" alt="AdminLTE Logo"
             class="brand-image img-circle elevation-3">
@@ -11,14 +108,13 @@
 
     <!-- Sidebar -->
     <div class="sidebar">
-        <!-- Sidebar user panel (optional) -->
-        <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+        <!-- Sidebar user panel -->
+        <div class="user-panel mt-3 pb-3 mb-3 d-flex" onclick="window.location.href='{% url 'admin_view_profile' %}'">
             <div class="image">
-            
                 {% if request.user.profile_pic %}
-                    <img src="{{ request.user.profile_pic }}" class="img-circle elevation-2" alt="User Image">
+                    <img src="{{ request.user.profile_pic }}" class="img-circle elevation-2" alt="User Image" onclick="event.stopPropagation(); openImageModal('{{ request.user.profile_pic }}', '{% url 'admin_view_profile' %}')">
                 {% else %}
-                    <img src="{% static '/dist/img/avatar-placeholder.jpeg' %}" class="img-circle elevation-2" alt="User Image">
+                    <img src="{% static '/dist/img/avatar-placeholder.jpeg' %}" class="img-circle elevation-2" alt="User Image" onclick="event.stopPropagation(); openImageModal('{% static '/dist/img/avatar-placeholder.jpeg' %}', '{% url 'admin_view_profile' %}')">
                 {% endif %}
             </div>
             <div class="info">
@@ -29,38 +125,25 @@
         <!-- Sidebar Menu -->
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-
                 <li class="nav-item">
                     {% url 'admin_home' as admin_home %}
                     <a href="{{admin_home}}" class="nav-link {% if admin_home == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-home"></i>
-                        <p>
-                            Home
-
-                        </p>
+                        <p>Home</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'admin_view_profile' as admin_view_profile %}
                     <a href="{{admin_view_profile}}" class="nav-link {% if admin_view_profile == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-user-edit"></i>
-                        <p>
-                            View/Edit Profile
-
-                        </p>
+                        <p>View/Edit Profile</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'generate_performance_report' as generate_report %}
                     <a href="{{generate_report}}" class="nav-link {% if generate_report == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-file-download"></i>
-
-                        <p>
-                           Generate Report
-
-                        </p>
+                        <p>Generate Report</p>
                     </a>
                 </li>
 
@@ -68,21 +151,14 @@
                     {% url 'all_employees_schedules' as all_employees_schedules %}
                     <a href="{{all_employees_schedules}}" class="nav-link {% if all_employees_schedules == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-users"></i>
-                        <p>
-                            Employees Schedules
-                        </p>
+                        <p>Employees Schedules</p>
                     </a>
                 </li>
-
-               
                 <li class="nav-item">
                     {% url 'add_manager' as add_manager %}
                     <a href="{{add_manager}}" class="nav-link {% if add_manager == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-user-plus"></i>
-                        <p>
-                            Add Manager
-
-                        </p>
+                        <p>Add Manager</p>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -91,101 +167,73 @@
                     <a href="{{manage_manager}}"
                         class="nav-link {% if manage_manager == request.path or request.path == edit_manager %} active {% endif %}">
                         <i class="nav-icon fas fa-users-cog"></i>
-                        <p>
-                            Manage Manager
-
-                        </p>
+                        <p>Manage Manager</p>
                     </a>
                 </li>
                 <li class="nav-item">
-                    {% url 'add_employee' as add_employee%}
-                    <a href="{{add_employee}}" class="nav-link  {% if add_employee == request.path %} active {% endif %}">
+                    {% url 'add_employee' as add_employee %}
+                    <a href="{{add_employee}}" class="nav-link {% if add_employee == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-user-plus"></i>
-                        <p>
-                            Add Employee
-
-                        </p>
+                        <p>Add Employee</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'manage_employee' as manage_employee %}
                     {% url 'edit_employee' employee_id as edit_employee %}
-
                     <a href="{{manage_employee}}"
-                        class="nav-link  {% if edit_employee == request.path or manage_employee == request.path %} active {% endif %}">
+                        class="nav-link {% if edit_employee == request.path or manage_employee == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-users"></i>
-                        <p>
-                            Manage Employee
-
-                        </p>
+                        <p>Manage Employee</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'add_division' as add_division %}
-                    <a href="{{add_division}}" class="nav-link  {% if add_division == request.path %} active {% endif %}">
+                    <a href="{{add_division}}" class="nav-link {% if add_division == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-sitemap"></i>
-                        <p>
-                            Add Division
-
-                        </p>
+                        <p>Add Division</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'manage_division' as manage_division %}
                     {% url 'edit_division' division_id as edit_division %}
                     <a href="{{manage_division}}"
-                        class="nav-link  {% if edit_division == request.path or manage_division == request.path %} active {% endif %}">
+                        class="nav-link {% if edit_division == request.path or manage_division == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-cogs"></i>
-                        <p>
-                            Manage Division
-
-                        </p>
+                        <p>Manage Division</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'add_department' as add_department %}
-                    <a href="{{add_department}}" class="nav-link  {% if add_department == request.path %} active {% endif %}">
+                    <a href="{{add_department}}" class="nav-link {% if add_department == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-building"></i>
-                        <p>
-                            Add Department
-
-                        </p>
+                        <p>Add Department</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'manage_department' as manage_department %}
                     {% url 'edit_department' department_id as edit_department %}
                     <a href="{{manage_department}}"
-                        class="nav-link  {% if edit_department == request.path or manage_department == request.path %} active {% endif %}">
-                        <i class="nav-icon fas  fa-wrench"></i>
-                        <p>
-                            Manage Department
-
-                        </p>
+                        class="nav-link {% if edit_department == request.path or manage_department == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-wrench"></i>
+                        <p>Manage Department</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'admin_view_attendance' as admin_view_attendance %}
+                    <a href="{{admin_view_attendance}}" class="nav-link {% if admin_view_attendance == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-calendar-alt"></i>
+                        <p>View Attendance</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    {% url 'admin_todays_attendance' as admin_todays_attendance %}
+                    <a href="{{ admin_todays_attendance }}" class="nav-link {% if admin_todays_attendance == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-user-clock"></i>
+                        <p>Today's Clocked-In</p>
+                    </a>
+                </li>
 
-                    <li class="nav-item">
-                        <a href="{{admin_view_attendance}}" class="nav-link  {% if admin_view_attendance == request.path %} active {% endif %}">
-                            <i class="nav-icon fas fa-calendar-alt"></i>
-                            <p>
-                                View Attendance
-                            </p>
-                        </a>
-                    </li> 
-                    <li class="nav-item">
-                        {% url 'admin_todays_attendance' as admin_todays_attendance %}
-                        <a href="{{ admin_todays_attendance }}" class="nav-link {% if admin_todays_attendance == request.path %} active {% endif %}">
-                            <i class="nav-icon fas fa-user-clock"></i>
-                            <p>
-                                Today's Clocked-In
-                            </p>
-                        </a>
-                    </li>
-                    
-                    <!-- <li class="nav-item">
+                <!-- <li class="nav-item">
                         {% url 'admin_view_notification' as admin_view_notification %}
                         <a href="{{admin_view_notification}}" class="nav-link {% if admin_view_notification == request.path %} active {% endif %}">
                             <i class="nav-icon fas fa-bell"></i>
@@ -197,55 +245,45 @@
                             </p>
                         </a>
                     </li> -->
-                    <li class="nav-item">
+                <li class="nav-item">
                     {% url 'manager_feedback_message' as manager_feedback_message %}
-
-                        <a href="{{manager_feedback_message}}" class="nav-link   {% if manager_feedback_message == request.path %} active {% endif %}">
-                            <i class="nav-icon fas fa-comments"></i>
-                            <p>
-                                Manager Feedback
-                                
-                            </p>
-                        </a>
-                    </li>
-            
-                    
-                    <li class="nav-item">
+                    <a href="{{manager_feedback_message}}" class="nav-link {% if manager_feedback_message == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-comments"></i>
+                        <p>Manager Feedback</p>
+                    </a>
+                </li>
+                <li class="nav-item">
                     {% url 'employee_feedback_message' as employee_feedback_message %}
-
-                    <a href="{{ employee_feedback_message }}" class="nav-link  {% if employee_feedback_message == request.path %} active {% endif %}">
+                    <a href="{{ employee_feedback_message }}" class="nav-link {% if employee_feedback_message == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-comment-alt"></i>
                         <p>
                             Employee Feedback
                             {% if admin_employee_feedback_count > 0 %}
                             <span class="right badge badge-danger">{{ admin_employee_feedback_count }}</span>
                             {% endif %}
-                            </p>
-                        </a>
-                    </li>
-                
+                        </p>
+                    </a>
+                </li>
                 <li class="nav-item">
-                {% url 'view_manager_leave' as view_manager_leave %}
-
-                    <a href="{{view_manager_leave}}" class="nav-link  {% if view_manager_leave == request.path %} active {% endif %}">
+                    {% url 'view_manager_leave' as view_manager_leave %}
+                    <a href="{{view_manager_leave}}" class="nav-link {% if view_manager_leave == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-calendar-check"></i>
                         <p>
                             Manager Leave
-                            {% if ceo_notification_from_manager_leave_request  > 0 %}
-                               <span class="badge badge-danger">{{ ceo_notification_from_manager_leave_request  }}</span>
+                            {% if ceo_notification_from_manager_leave_request > 0 %}
+                               <span class="badge badge-danger">{{ ceo_notification_from_manager_leave_request }}</span>
                             {% endif %}
                         </p>
                     </a>
                 </li>
                 <li class="nav-item">
-                {% url 'view_employee_leave' as view_employee_leave %}
-
-                    <a href="{% url 'view_employee_leave' %}" class="nav-link  {% if view_employee_leave == request.path %} active {% endif %}">
-                        <i class="nav-icon fas  fa-calendar-day"></i>
+                    {% url 'view_employee_leave' as view_employee_leave %}
+                    <a href="{% url 'view_employee_leave' %}" class="nav-link {% if view_employee_leave == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-calendar-day"></i>
                         <p>
                             Employee Leave
-                            {% if ceo_notification_from_employee_leave_request  > 0 %}
-                               <span class="badge badge-danger">{{ ceo_notification_from_employee_leave_request  }}</span>
+                            {% if ceo_notification_from_employee_leave_request > 0 %}
+                               <span class="badge badge-danger">{{ ceo_notification_from_employee_leave_request }}</span>
                             {% endif %}
                         </p>
                     </a>
@@ -254,21 +292,16 @@
                     {% url 'admin_notify_manager' as admin_notify_manager %}
                     <a href="{{admin_notify_manager}}" class="nav-link {% if admin_notify_manager == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-bullhorn"></i>
-                        <p>
-                            Notify Manager
-
-                        </p>
+                        <p>Notify Manager</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'admin_notify_employee' as admin_notify_employee %}
                     <a href="{{admin_notify_employee}}" class="nav-link {% if admin_notify_employee == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-bell"></i>
-                        <p>
-                            Notify Employee
-
-                        </p>
+                        <p>Notify Employee</p>
                     </a>
+                </li>
                 <li class="nav-header">ASSET MANAGEMENT</li>
                 <li class="nav-item">
                     {% url 'asset_app:print_all_barcode' as print_barcodes %}
@@ -306,7 +339,7 @@
                     </a>
                 </li>
 
-            <!-- {% for asset in unclaimed_assets %}
+                   <!-- {% for asset in unclaimed_assets %}
                 <li class="nav-item">
                 <a href="{% url 'asset_app:asset-assign' asset.id %}" 
                 class="nav-link {% if request.path == asset.get_absolute_url %} active {% endif %}">
@@ -325,27 +358,23 @@
                     </p>
                 </a>
             </li>  -->
-
-                
-                
-                
 {% elif request.user.user_type == '2' %}
     <!-- Brand Logo -->
     <a href="#" class="brand-link">
-        <img src="{% static 'dist/img/koli-logo.svg' %}" style="height:50px; width:50px" alt="AdminLTE Logo"
-            class="brand-image img-circle elevation-3" style="opacity: .8">
+        <img src="{% static 'dist/img/koli-logo.svg' %}" alt="AdminLTE Logo"
+            class="brand-image img-circle elevation-3">
         <span class="brand-text font-weight-light">Manager Panel</span>
     </a>
 
     <!-- Sidebar -->
     <div class="sidebar">
-        <!-- Sidebar user panel (optional) -->
-        <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+        <!-- Sidebar user panel -->
+        <div class="user-panel mt-3 pb-3 mb-3 d-flex" onclick="window.location.href='{% url 'manager_view_profile' %}'">
             <div class="image">
                 {% if request.user.profile_pic %}
-                    <img src="{{ request.user.profile_pic }}" class="img-circle elevation-2" alt="User Image">
+                    <img src="{{ request.user.profile_pic }}" class="img-circle elevation-2" alt="User Image" onclick="event.stopPropagation(); openImageModal('{{ request.user.profile_pic }}', '{% url 'manager_view_profile' %}')">
                 {% else %}
-                    <img src="{% static '/dist/img/avatar-placeholder.jpeg' %}" class="img-circle elevation-2" alt="User Image">
+                    <img src="{% static '/dist/img/avatar-placeholder.jpeg' %}" class="img-circle elevation-2" alt="User Image" onclick="event.stopPropagation(); openImageModal('{% static '/dist/img/avatar-placeholder.jpeg' %}', '{% url 'manager_view_profile' %}')">
                 {% endif %}
             </div>
             <div class="info">
@@ -356,50 +385,36 @@
         <!-- Sidebar Menu -->
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-
                 <li class="nav-item">
                     {% url 'manager_home' as manager_home %}
                     <a href="{{manager_home}}" class="nav-link {% if manager_home == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-home"></i>
-                        <p>
-                            Home
-
-                        </p>
+                        <p>Home</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'manager_view_profile' as manager_view_profile %}
                     <a href="{{manager_view_profile}}" class="nav-link {% if manager_view_profile == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-user-edit"></i>
-                        <p>
-                            View/Edit Profile
-
-                        </p>
+                        <p>View/Edit Profile</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'manager_todays_attendance' as manager_todays_attendance %}
                     <a href="{{ manager_todays_attendance }}" class="nav-link {% if manager_todays_attendance == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-user-clock"></i>
-                        <p>
-                            Today's Clocked-In
-                        </p>
+                        <p>Today's Clocked-In</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'all_employees_schedules' as all_employees_schedules %}
                     <a href="{{all_employees_schedules}}" class="nav-link {% if all_employees_schedules == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-users"></i>
                         <p>
-                            Employees Schedule/Update
+                            Employees Schedules
                         </p>
                     </a>
                 </li>
-                
-
                 <li class="nav-item">
                     {% url 'add_employee_by_manager' as add_employee_by_manager %}
                     <a href="{% url 'add_employee_by_manager' %}" class="nav-link {% if add_employee_by_manager == request.path %} active {% endif %}">
@@ -407,7 +422,6 @@
                         <p>Add Employee</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'manage_employee_by_manager' as manage_employee_by_manager %}
                     <a href="{{ manage_employee_by_manager }}" class="nav-link {% if manage_employee_by_manager == request.path %} active {% endif %}">
@@ -416,7 +430,7 @@
                     </a>
                 </li>
 
-                {% comment %} <li class="nav-item">
+                 {% comment %} <li class="nav-item">
                     {% url 'manager_take_attendance' as manager_take_attendance %}
                     <a href="{{manager_take_attendance}}" class="nav-link {% if manager_take_attendance == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-clipboard-check"></i>
@@ -430,10 +444,7 @@
                     {% url 'manager_update_attendance' as manager_update_attendance %}
                     <a href="{{manager_update_attendance}}" class="nav-link {% if manager_update_attendance == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-calendar-day"></i>
-                        <p>
-                            View Attendance
-
-                        </p>
+                        <p>View Attendance</p>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -450,18 +461,17 @@
                 </li>
                 <li class="nav-item">
                     {% url 'manager_view_by_employee_feedback_message' as manager_view_by_employee_feedback_message %}
-
-                    <a href="{{ manager_view_by_employee_feedback_message }}" class="nav-link  {% if manager_view_by_employee_feedback_message == request.path %} active {% endif %}">
+                    <a href="{{ manager_view_by_employee_feedback_message }}" class="nav-link {% if manager_view_by_employee_feedback_message == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-comment-alt"></i>
                         <p>
                             Employee Feedback
                             {% if admin_employee_feedback_count > 0 %}
                             <span class="right badge badge-danger">{{ admin_employee_feedback_count }}</span>
                             {% endif %}
-                            </p>
-                        </a>
+                        </p>
+                    </a>
                 </li>
-                {% comment %} <li class="nav-item">
+                  {% comment %} <li class="nav-item">
                 {% url 'manager_view_by_employee_leave' as manager_view_by_employee_leave %}
 
                     <a href="{% url 'manager_view_by_employee_leave' %}" class="nav-link  {% if manager_view_by_employee_leave == request.path %} active {% endif %}">
@@ -476,13 +486,9 @@
                     {% url 'manager_notify_employee' as manager_notify_employee %}
                     <a href="{{manager_notify_employee}}" class="nav-link {% if manager_notify_employee == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-bullhorn"></i>
-                        <p>
-                            Notify Employee
-                        </p>
+                        <p>Notify Employee</p>
                     </a>
                 </li>
-                
-
                 <li class="nav-item">
                     {% url 'manager_apply_leave' as manager_apply_leave %}
                     <a href="{{manager_apply_leave}}" class="nav-link {% if manager_apply_leave == request.path %} active {% endif %}">
@@ -495,15 +501,11 @@
                         </p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'manager_feedback' as manager_feedback %}
                     <a href="{{manager_feedback}}" class="nav-link {% if manager_feedback == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-comment-dots"></i>
-                        <p>
-                           Feedback
-
-                        </p>
+                        <p>Feedback</p>
                     </a>
                 </li>
                 <li class="nav-header">ASSET MANAGEMENT</li>
@@ -514,7 +516,6 @@
                         <p>Print Barcode</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'asset_app:assetscategory-create' as assets_category %}
                     <a href="{{assets_category}}" class="nav-link {% if assets_category == request.path %} active {% endif %}">
@@ -522,7 +523,6 @@
                         <p>Add Asset Categories</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'asset_app:assets-create' as assets_create %}
                     <a href="{{assets_create}}" class="nav-link {% if assets_create == request.path %} active {% endif %}">
@@ -530,7 +530,6 @@
                         <p>Create Assets</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'asset_app:assets-list' as assets_home %}
                     <a href="{{assets_home}}" class="nav-link {% if assets_home == request.path %} active {% endif %}">
@@ -538,20 +537,18 @@
                         <p>All Assets List</p>
                     </a>
                 </li>
-                
                 <li class="nav-item">
                     {% url 'manager_asset_view_notification' as manager_asset_view_notification %}
                     <a href="{{ manager_asset_view_notification }}" class="nav-link {% if manager_asset_view_notification == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-bell"></i>
                         <p>
                             Asset Notifications
-                            {% if unread_asset_notification_count > 0 %}
-                            <span class="right badge badge-danger">{{ unread_asset_notification_count }}</span>
+                            {% if total_asset_unread_notifications > 0 %}
+                            <span class="badge badge-danger">{{ total_asset_unread_notifications }}</span>
                             {% endif %}
                         </p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'asset_app:not-assign-asset-list' as not_assign_asset_list %}
                     <a href="{{not_assign_asset_list}}" class="nav-link {% if not_assign_asset_list == request.path %} active {% endif %}">
@@ -559,7 +556,6 @@
                         <p>Not Assigned Devices</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'asset_app:my-assets' as my_assets %}
                     <a href="{{my_assets}}" class="nav-link {% if my_assets == request.path %} active {% endif %}">
@@ -567,30 +563,23 @@
                         <p>My Assigned Assets</p>
                     </a>
                 </li>
-
-                
-
-               
-
-          
 {% else %}
     <!-- Brand Logo -->
-    <a href="" class="brand-link">
-        
-        <img src="{% static 'dist/img/koli-logo.svg' %}" style="heigh:50px; width:50px" alt="AdminLTE Logo"
+    <a href="#" class="brand-link">
+        <img src="{% static 'dist/img/koli-logo.svg' %}" alt="AdminLTE Logo"
             class="brand-image img-circle elevation-3">
         <span class="brand-text font-weight-light">Employee Panel</span>
     </a>
 
     <!-- Sidebar -->
     <div class="sidebar">
-        <!-- Sidebar user panel (optional) -->
-        <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+        <!-- Sidebar user panel -->
+        <div class="user-panel mt-3 pb-3 mb-3 d-flex" onclick="window.location.href='{% url 'employee_view_profile' %}'">
             <div class="image">
                 {% if request.user.profile_pic %}
-                    <img src="{{ request.user.profile_pic }}" class="img-circle elevation-2" alt="User Image">
+                    <img src="{{ request.user.profile_pic }}" class="img-circle elevation-2" alt="User Image" onclick="event.stopPropagation(); openImageModal('{{ request.user.profile_pic }}', '{% url 'employee_view_profile' %}')">
                 {% else %}
-                    <img src="{% static '/dist/img/avatar-placeholder.jpeg' %}" class="img-circle elevation-2" alt="User Image">
+                    <img src="{% static '/dist/img/avatar-placeholder.jpeg' %}" class="img-circle elevation-2" alt="User Image" onclick="event.stopPropagation(); openImageModal('{% static '/dist/img/avatar-placeholder.jpeg' %}', '{% url 'employee_view_profile' %}')">
                 {% endif %}
             </div>
             <div class="info">
@@ -601,77 +590,55 @@
         <!-- Sidebar Menu -->
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-
                 <li class="nav-item">
                     {% url 'employee_home' as employee_home %}
                     <a href="{{employee_home}}" class="nav-link {% if employee_home == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-home"></i>
-                        <p>
-                            Home
-
-                        </p>
+                        <p>Home</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'employee_view_profile' as employee_view_profile %}
                     <a href="{{employee_view_profile}}" class="nav-link {% if employee_view_profile == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-user-tie"></i>
-                        <p>
-                            Profile
-                        </p>
+                        <p>Profile</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'leave_balance' as leave_balance %}
                     <a href="{{ leave_balance }}" class="nav-link {% if leave_balance == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-calendar-check"></i>
-                        <p>
-                            Leave Balance
-                        </p>
+                        <p>Leave Balance</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'daily_schedule' as daily_schedule %}
                     <a href="{{daily_schedule}}" class="nav-link {% if daily_schedule == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-calendar-day"></i>
-                        <p>
-                            Daily Schedule
-                        </p>
+                        <p>Daily Schedule</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'todays_update' as todays_update %}
                     <a href="{{todays_update}}" class="nav-link {% if todays_update == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-bell"></i>
-                        <p>
-                            Today's Update
-                        </p>
+                        <p>Today's Update</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'view_all_schedules' as view_all_schedules %}
                     <a href="{{view_all_schedules}}" class="nav-link {% if view_all_schedules == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-calendar-alt"></i>
-                        <p>
-                            All Schedules
-                        </p>
+                        <p>All Schedules</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'others_schedule' as others_schedule %}
                     <a href="{{others_schedule}}" class="nav-link {% if others_schedule == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-users"></i>
-                        <p>
-                            Other's Schedule/Update
-                        </p>
+                        <p>Other's Schedule/Update</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'employee_view_attendance' as employee_view_attendance %}
                     <a href="{{employee_view_attendance}}" class="nav-link {% if employee_view_attendance == request.path %} active {% endif %}">
@@ -679,7 +646,6 @@
                         <p>View Attendance</p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'employee_view_notification' as employee_view_notification %}
                     <a href="{{employee_view_notification}}" class="nav-link {% if employee_view_notification == request.path %} active {% endif %}">
@@ -692,7 +658,6 @@
                         </p>
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'employee_apply_leave' as employee_apply_leave %}
                     <a href="{{employee_apply_leave}}" class="nav-link {% if employee_apply_leave == request.path %} active {% endif %}">
@@ -710,20 +675,14 @@
                     {% url 'employee_feedback' as employee_feedback %}
                     <a href="{{employee_feedback}}" class="nav-link {% if employee_feedback == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-comment-dots"></i>
-                        <p>
-                           Feedback
-
-                        </p>
+                        <p>Feedback</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'early_clock_out_request_page' as early_clock_out_request_page %}
                     <a href="{{early_clock_out_request_page}}" class="nav-link {% if early_clock_out_request_page == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-clock"></i>
-                        <p>
-                           Request Early Clock Out
-
-                        </p>
+                        <p>Request Early Clock Out</p>
                     </a>
                 </li>
                 <li class="nav-header">ASSET MANAGEMENT</li>
@@ -731,42 +690,31 @@
                     {% url 'employee_requests' as employee_requests %}
                     <a href="{{employee_requests}}" class="nav-link {% if employee_requests == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-tasks"></i>
-                        <p>
-                            My Requests
-                        </p>
+                        <p>My Requests</p>
+                        {% if total_unread_notifications > 0 %}
+                            <span class="badge badge-danger">{{ total_unread_notifications }}</span>
+                        {% endif %}
                     </a>
                 </li>
-
                 <li class="nav-item">
                     {% url 'asset_app:my-assets' as my_assets %}
                     <a href="{{my_assets}}" class="nav-link {% if my_assets == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-laptop"></i>
-                        <p>
-                            My Assigned Assets
-                        </p>
+                        <p>My Assigned Assets</p>
                     </a>
                 </li>
                 <li class="nav-item">
                     {% url 'asset_app:not-assign-asset-list' as not_assign_asset_list %}
                     <a href="{{not_assign_asset_list}}" class="nav-link {% if not_assign_asset_list == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-network-wired"></i>
-                        <p>
-                            Available Devices
-                        </p>
+                        <p>Available Devices</p>
                     </a>
                 </li>
-                
-          
 {% endif %}
-
-
-
 <li class="nav-item">
     <a href="{% url 'user_logout' %}" onclick="return confirm('Your session would be terminated.\n\nProceed?')" class="nav-link">
         <i class="nav-icon fas fa-sign-out-alt"></i>
-        <p>
-            Logout
-        </p>
+        <p>Logout</p>
     </a>
 </li>
 </ul>
@@ -775,3 +723,34 @@
 </div>
 <!-- /.sidebar -->
 </aside>
+
+<!-- Modal for image preview -->
+<div id="imageModal" class="image-modal">
+    <span class="close-modal" onclick="closeImageModal()">×</span>
+    <img class="image-modal-content" id="modalImage">
+    <a id="viewProfileButton" class="view-profile-button">View Profile</a>
+</div>
+
+<script>
+    function openImageModal(src, profileUrl) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        const viewProfileButton = document.getElementById('viewProfileButton');
+        modal.style.display = 'flex';
+        modalImg.src = src;
+        viewProfileButton.href = profileUrl;
+    }
+
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+        modal.style.display = 'none';
+    }
+
+    // Close modal when clicking outside the image
+    window.onclick = function(event) {
+        const modal = document.getElementById('imageModal');
+        if (event.target === modal) {
+            closeImageModal();
+        }
+    }
+</script>

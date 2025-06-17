@@ -25,6 +25,12 @@
         padding-bottom: 10px;
         border-bottom: 1px solid #eee;
     }
+    .project-info {
+        font-size: 1.1rem;
+        color: #4a90e2;
+        margin-bottom: 15px;
+        font-weight: 500;
+    }
     .update-item {
         display: flex;
         gap: 15px;
@@ -179,8 +185,8 @@
     .timeline-line {
         position: absolute;
         left: 10px;
-        top: 8px; /* Align with the first list item */
-        bottom: 8px; /* Align with the last list item */
+        top: 8px;
+        bottom: 8px;
         width: 4px;
         background-color: #4a90e2;
     }
@@ -194,16 +200,12 @@
         border-radius: 50%;
     }
     .timeline-line::before {
-        top: -2px; /* Half the height to position the circle correctly */
+        top: -2px;
         left: 0;
     }
     .timeline-line::after {
-        bottom: -2px; /* Half the height to position the circle correctly */
+        bottom: -2px;
         left: 0;
-    }
-    .time-estimate {
-        color: #7f8c8d;
-        font-size: 0.9em;
     }
     textarea {
         width: 100%;
@@ -234,6 +236,60 @@
     .date-input {
         flex: 1;
     }
+    .popup-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+    }
+    .popup {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+    }
+    .popup h4 {
+        margin: 0 0 15px;
+        color: #1a365d;
+        font-size: 18px;
+    }
+    .popup p {
+        margin: 0 0 20px;
+        color: #4b5563;
+        font-size: 14px;
+    }
+    .popup-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+    .popup-ok {
+        background-color: #4a90e2;
+        color: white;
+        margin-right: 10px;
+    }
+    .popup-ok:hover {
+        background-color: #3a7bc8;
+    }
+    .popup-cancel {
+        background-color: #6b7280;
+        color: white;
+    }
+    .popup-cancel:hover {
+        background-color: #5f6673;
+    }
 </style>
 {% endblock %}
 
@@ -242,7 +298,12 @@
     <div class="update-container">
         <!-- Schedule Section -->
         <div class="section-card">
-            <h3 class="section-title">Today's Schedule</h3>
+            <h3 class="section-title">Today's Schedule - {{ today|date:"F j, Y" }}</h3>
+            {% if schedule.project %}
+                <div class="project-info">Project: {{ schedule.project|escape }}</div>
+            {% else %}
+                <div class="project-info">No project assigned</div>
+            {% endif %}
             {% if schedule.tasks %}
                 <div class="task-list-container">
                     <div class="timeline-line"></div>
@@ -253,7 +314,7 @@
                     </ul>
                 </div>
             {% else %}
-                <div class="text-center py-4">No schedule found</div>
+                <div class="text-center py-4">No tasks scheduled for today</div>
             {% endif %}
         </div>
 
@@ -261,7 +322,8 @@
         <div class="section-card">
             <h3 class="section-title">Daily Update</h3>
             <div class="project-date-container">
-                <input type="text" class="project-input" id="project-name" placeholder="Project Name" {% if not is_editable %}readonly{% endif %} value="{% if update %}{{ update.schedule.project|escape }}{% endif %}">
+                <input type="text" class="project-input" id="project-name" placeholder="Project Name" {% if not is_editable %}readonly{% endif %} value="{{ project_name|escape }}">
+                <input type="text" class="date-input" value="{{ today|date:'Y-m-d' }}" readonly>
             </div>
             <div id="updates-container">
                 {% if update and update.updates %}
@@ -337,6 +399,18 @@
     </div>
 </div>
 
+<!-- Popup for justification confirmation -->
+<div id="justification-popup" class="popup-overlay">
+    <div class="popup">
+        <h4>Less Than 8 Hours Update</h4>
+        <p>Please provide justification for spending less than 8 hours.</p>
+        <div>
+            <button id="popup-ok-btn" class="popup-btn popup-ok">OK</button>
+            <button id="popup-cancel-btn" class="popup-btn popup-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <form id="update-form" method="post" action="{% url 'todays_update' %}">
     {% csrf_token %}
     <input type="hidden" name="update_description" id="update-description-input">
@@ -355,12 +429,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const formJustificationInput = document.getElementById('form-justification-input');
     const projectNameInput = document.getElementById('project-name');
     const projectNameFormInput = document.getElementById('project-name-input');
-
-    // Ensure justification box is hidden on page load
-    justificationBox.style.display = 'none';
-
-    // Track edit mode for each item
+    const popup = document.getElementById('justification-popup');
+    const popupOkBtn = document.getElementById('popup-ok-btn');
+    const popupCancelBtn = document.getElementById('popup-cancel-btn');
     let editModes = {};
+    let totalMinutes = 0;
+    let isJustificationRequired = false;
+
+    // Ensure justification box and popup are hidden on page load
+    justificationBox.style.display = 'none';
+    popup.style.display = 'none';
 
     // Initialize edit modes
     function initializeEditModes() {
@@ -467,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the time summary display
     function updateTimeSummary() {
-        let totalMinutes = 0;
+        totalMinutes = 0;
         let hasInvalidEntries = false;
         
         document.querySelectorAll('.update-item').forEach(item => {
@@ -496,11 +574,14 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSummary.innerHTML = `Total time spent: <strong>${hours}h ${minutes}m</strong>`;
         document.getElementById('total-time-display').textContent = totalHours;
         
-        if (totalMinutes < 480) {
+        isJustificationRequired = totalMinutes < 480 && totalMinutes > 0;
+        if (isJustificationRequired) {
             timeSummary.classList.add('error');
             timeSummary.innerHTML += ' <span>(8 hours required)</span>';
         } else {
             timeSummary.classList.remove('error');
+            justificationBox.style.display = 'none';
+            justificationInput.value = '';
         }
         
         if (hasInvalidEntries) {
@@ -601,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            let totalMinutes = 0;
+            totalMinutes = 0;
             updates.forEach(u => {
                 const timePart = u.split('|')[1].trim().toLowerCase();
                 totalMinutes += parseTime(timePart);
@@ -611,25 +692,47 @@ document.addEventListener('DOMContentLoaded', () => {
             formJustificationInput.value = justificationInput.value.trim();
             projectNameFormInput.value = projectName;
 
-            // Handle justification logic
-            if (totalMinutes < 480) {
-                justificationBox.style.display = 'block';
-                justificationBox.scrollIntoView({ behavior: 'smooth' });
-                if (justificationInput.value.trim() === '') {
+            // Show popup if total time is less than 8 hours and justification box is not open
+            if (isJustificationRequired && justificationBox.style.display !== 'block') {
+                popup.style.display = 'flex';
+                return;
+            }
+
+            // Validate justification if required
+            if (isJustificationRequired && justificationBox.style.display === 'block') {
+                if (!justificationInput.value.trim()) {
                     justificationInput.classList.add('invalid-input');
                     alert('Please provide justification for spending less than 8 hours');
+                    justificationInput.focus();
                     return;
                 }
                 justificationInput.classList.remove('invalid-input');
-                document.getElementById('update-form').submit();
-            } else {
-                justificationInput.value = '';
-                formJustificationInput.value = '';
-                justificationBox.style.display = 'none';
-                document.getElementById('update-form').submit();
             }
+
+            // Submit form
+            document.getElementById('update-form').submit();
         });
     }
+
+    // Popup OK button - show justification box
+    popupOkBtn.addEventListener('click', () => {
+        popup.style.display = 'none';
+        justificationBox.style.display = 'block';
+        justificationBox.scrollIntoView({ behavior: 'smooth' });
+        justificationInput.focus();
+    });
+
+    // Popup Cancel button - hide popup
+    popupCancelBtn.addEventListener('click', () => {
+        popup.style.display = 'none';
+    });
+
+    // Handle justification input validation
+    justificationInput.addEventListener('input', () => {
+        if (justificationInput.value.trim()) {
+            justificationInput.classList.remove('invalid-input');
+        }
+    });
 
     // Initialize everything
     document.querySelectorAll('.time-spent').forEach(input => {

@@ -1,22 +1,14 @@
-from datetime import datetime
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render, redirect, get_object_or_404,reverse
-from django.utils import timezone
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from calendar import monthrange
-from asset_app.models import Notify_Manager,LOCATION_CHOICES
-from main_app.notification_badge import mark_notification_read, send_notification
+from asset_app.models import Notify_Manager,LOCATION_CHOICES,AssetIssue
+from main_app.notification_badge import send_notification
 from .forms import *
 from .models import *
-from django.db.models import Sum, F, DurationField, ExpressionWrapper
-from django.db.models.functions import Coalesce
-from datetime import timedelta
-from asset_app.models import Notify_Manager,AssetIssue
-from django.utils.timezone import localtime, make_aware
 from datetime import timedelta, datetime, time
-from django.core.paginator import Paginator
 from datetime import date
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
@@ -24,23 +16,30 @@ import openpyxl
 from openpyxl.styles import Font, Alignment
 from io import BytesIO
 from .context_processors import leave_balance_context
-from zoneinfo import ZoneInfo
-from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.shortcuts import get_object_or_404, render
-from django.http import JsonResponse
-from django.template.loader import render_to_string
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.db.models import Sum, F, ExpressionWrapper, DurationField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from zoneinfo import ZoneInfo
-from datetime import datetime, timedelta, time
-from calendar import monthrange
 import logging
 from django.utils.timezone import make_aware, now
 
+
+
 logger = logging.getLogger(__name__)
+
+def make_aware_if_naive(dt, timezone=ZoneInfo('Asia/Kolkata')):
+    """Convert naive datetime to aware if necessary."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        try:
+            return make_aware(dt, timezone=timezone)
+        except Exception as e:
+            logger.error(f"Failed to make datetime aware: {dt}, error: {str(e)}")
+            return dt
+    return dt
 
 @login_required
 @transaction.atomic
@@ -111,25 +110,26 @@ def employee_home(request):
 
     # Prepare detailed time entries for display
     detailed_time_entries = []
+    ist = ZoneInfo('Asia/Kolkata')
     for record in records.order_by('date', 'clock_in'):
         detailed_time_entries.append({
             'type': 'clock_in',
             'date': record.date,
-            'start_time': record.clock_in,
-            'end_time': record.clock_out if record.clock_out else None,
-            'time': record.clock_in,
+            'start_time': make_aware_if_naive(record.clock_in),
+            'end_time': make_aware_if_naive(record.clock_out),
+            'time': make_aware_if_naive(record.clock_in),
             'record': record,
             'status': 'Clocked In' if not record.clock_out else 'Clocked Out',
-            'duration': record.clock_out - record.clock_in if record.clock_out else None
+            'duration': (make_aware_if_naive(record.clock_out) - make_aware_if_naive(record.clock_in)) if record.clock_out else None
         })
         breaks = record.breaks.all().order_by('break_start')
         for brk in breaks:
             detailed_time_entries.append({
                 'type': 'break',
                 'date': record.date,
-                'start_time': brk.break_start,
-                'end_time': brk.break_end,
-                'time': brk.break_start,
+                'start_time': make_aware_if_naive(brk.break_start),
+                'end_time': make_aware_if_naive(brk.break_end),
+                'time': make_aware_if_naive(brk.break_start),
                 'duration': brk.duration,
                 'record': record,
                 'status': 'Break End' if brk.break_end else 'Break Start'
@@ -138,18 +138,17 @@ def employee_home(request):
             detailed_time_entries.append({
                 'type': 'clock_out',
                 'date': record.date,
-                'start_time': record.clock_in,
-                'end_time': record.clock_out,
-                'time': record.clock_out,
+                'start_time': make_aware_if_naive(record.clock_in),
+                'end_time': make_aware_if_naive(record.clock_out),
+                'time': make_aware_if_naive(record.clock_out),
                 'record': record,
                 'status': 'Clocked Out',
-                'duration': record.clock_out - record.clock_in
+                'duration': make_aware_if_naive(record.clock_out) - make_aware_if_naive(record.clock_in)
             })
 
     # Sort entries by date and time
-    ist = ZoneInfo('Asia/Kolkata')
     min_datetime = datetime(1, 1, 1, tzinfo=ist)
-    detailed_time_entries.sort(key=lambda x: (x['date'], x['time'] or min_datetime), reverse=True)
+    detailed_time_entries.sort(key=lambda x: (x['date'], x['time'] if x['time'] is not None else min_datetime), reverse=True)
 
     # Pagination
     paginator = Paginator(detailed_time_entries, 10)
@@ -431,6 +430,7 @@ def employee_home(request):
                 elif record.status == 'half_day':
                     present_days += 1
                     half_days += 1
+                    absent_days += 0.5
                     logger.debug(f"Date {date} - Status={record.status}, Present Days={present_days}, Half Days={half_days}")
             elif leave_entry:
                 leave_amount = leave_entry['leave_amount']
@@ -544,8 +544,8 @@ def employee_home(request):
         last_clock_out_record = today_records.filter(clock_out__isnull=False).last()
         today_clock_out_time = last_clock_out_record.clock_out if last_clock_out_record else None
 
-        clock_in_ist = today_record.clock_in.astimezone(ist) if today_record.clock_in else None
-        office_start = datetime.combine(today, time(9, 0)).replace(tzinfo=ist) if clock_in_ist else None
+        clock_in_ist = today_record.clock_in if today_record.clock_in else None
+        office_start = datetime.combine(today, time(9, 30)) if clock_in_ist else None
 
         if current_record:
             today_status = 'Clocked In'
@@ -558,44 +558,57 @@ def employee_home(request):
         today_half_day = today_record.status == 'half_day'
 
         # Calculate late duration if applicable
-        if clock_in_ist and clock_in_ist > office_start:
-            late_duration = clock_in_ist - office_start
-            total_seconds = late_duration.total_seconds()
-            hours = int(total_seconds // 3600)
-            minutes = int((total_seconds % 3600) // 60)
-            today_late_duration_str = f"{hours} hours {minutes} minutes" if total_seconds > 0 else "0 hours 0 minutes"
+        if clock_in_ist and office_start:
+            try:
+                late_duration = clock_in_ist - office_start
+                total_seconds = late_duration.total_seconds()
+                hours = int(total_seconds // 3600)
+                minutes = int((total_seconds % 3600) // 60)
+                today_late_duration_str = f"{hours} hours {minutes} minutes" if total_seconds > 0 else "0 hours 0 minutes"
+            except TypeError as e:
+                logger.error(f"Error calculating late duration: clock_in_ist={clock_in_ist}, office_start={office_start}, error={str(e)}")
+                today_late_duration_str = "0 hours 0 minutes"
         else:
             today_late_duration_str = "0 hours 0 minutes"
 
         # Calculate worked duration
-        first_clock_in = today_record.clock_in
+        first_clock_in = today_clock_in_time
         last_clock_out = today_clock_out_time
 
         if first_clock_in and last_clock_out:
-            today_total_worked = last_clock_out - first_clock_in
-            total_break_time = sum(
-                (brk.duration for record in today_records for brk in record.breaks.all() if brk.duration),
-                timedelta()
-            )
-            today_total_worked -= total_break_time
-            total_seconds = today_total_worked.total_seconds()
-            hours = int(total_seconds // 3600)
-            minutes = int((total_seconds % 3600) // 60)
-            today_duration_str = f"{hours} hours {minutes} minutes" if total_seconds > 0 else "0 hours 0 minutes"
+            try:
+                today_total_worked = last_clock_out - first_clock_in
+                total_break_time = sum(
+                    (brk.duration for record in today_records for brk in record.breaks.all() if brk.duration),
+                    timedelta()
+                )
+                today_total_worked -= total_break_time
+                total_seconds = today_total_worked.total_seconds()
+                hours = int(total_seconds // 3600)
+                minutes = int((total_seconds % 3600) // 60)
+                today_duration_str = f"{hours} hours {minutes} minutes" if total_seconds > 0 else "0 hours 0 minutes"
+            except TypeError as e:
+                logger.error(f"Error calculating total worked duration: first_clock_in={first_clock_in}, last_clock_out={last_clock_out}, error={str(e)}")
+                today_duration_str = "0 hours 0 minutes"
         elif first_clock_in and not last_clock_out:
-            current_duration = current_time - first_clock_in
-            total_break_time = sum(
-                (brk.duration for record in today_records for brk in record.breaks.all() if brk.duration),
-                timedelta()
-            )
-            current_duration -= total_break_time
-            total_seconds = current_duration.total_seconds()
-            if total_seconds < 0:
-                total_seconds = 0
-            hours = int(total_seconds // 3600)
-            minutes = int((total_seconds % 3600) // 60)
-            today_current_duration_str = f"{hours} hours {minutes} minutes" if total_seconds > 0 else "0 hours 0 minutes"
-            today_duration_str = today_current_duration_str
+            try:
+                current_duration = current_time - first_clock_in
+                total_break_time = sum(
+                    (brk.duration for record in today_records for brk in record.breaks.all() if brk.duration),
+                    timedelta()
+                )
+                current_duration -= total_break_time
+                total_seconds = current_duration.total_seconds()
+                if total_seconds < 0:
+                    total_seconds = 0
+                hours = int(total_seconds // 3600)
+                minutes = int((total_seconds % 3600) // 60)
+                today_current_duration_str = f"{hours} hours {minutes} minutes" if total_seconds > 0 else "0 hours 0 minutes"
+                today_duration_str = today_current_duration_str
+            except TypeError as e:
+                logger.error(f"Error calculating current duration: current_time={current_time}, first_clock_in={first_clock_in}, error={str(e)}")
+                today_duration_str = "0 hours 0 minutes"
+                today_current_duration_str = "0 hours 0 minutes"
         else:
             today_duration_str = "0 hours 0 minutes"
             today_late_duration_str = "0 hours 0 minutes"
@@ -615,14 +628,14 @@ def employee_home(request):
         break_type='lunch'
     ).first()
     if lunch_break:
-        lunch_taken_time = lunch_break.break_start
+        lunch_taken_time = make_aware_if_naive(lunch_break.break_start)
 
     recent_break = Break.objects.filter(
         attendance_record__user=request.user,
         attendance_record__date=today
     ).exclude(break_type='lunch').order_by('-break_start').first()
     if recent_break:
-        break_taken_time = recent_break.break_start
+        break_taken_time = make_aware_if_naive(recent_break.break_start)
 
     # Get recent activity
     recent_activities = ActivityFeed.objects.filter(
@@ -1114,6 +1127,7 @@ def employee_view_salary(request):
 def employee_view_notification(request):
     employee = get_object_or_404(Employee, admin=request.user)
     
+    
     all_notifications = NotificationEmployee.objects.filter(
         employee=employee
     ).order_by('-created_at')
@@ -1221,13 +1235,13 @@ def get_ist_date():
     return timezone.now().astimezone(ist).date()
 
 def get_ist_datetime():
-    return timezone.now().astimezone(pytz.timezone('Asia/Kolkata'))
+    return timezone.now()
 
 @login_required
 def daily_schedule(request):
     employee = get_object_or_404(Employee, admin=request.user)
-    today = get_ist_date()
-    now = get_ist_datetime()
+    today = timezone.now().date()
+    now = timezone.now()
 
     # Check if employee has clocked in today, redirect to home if not
     attendance_record = AttendanceRecord.objects.filter(
@@ -1247,8 +1261,8 @@ def daily_schedule(request):
     allow_edit = True
     if schedule:
         # Ensure created_at is timezone-aware
-        created_at_aware = schedule.created_at.astimezone(pytz.timezone('Asia/Kolkata')) if schedule.created_at.tzinfo is None else schedule.created_at
-        edit_window = created_at_aware + timedelta(minutes=30)
+        created_at = schedule.created_at
+        edit_window = created_at + timedelta(minutes=30)
         allow_edit = now <= edit_window
 
     if request.method == 'POST' and allow_edit:
@@ -1355,6 +1369,13 @@ def daily_schedule(request):
     
     
     
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from .models import Employee, DailySchedule, DailyUpdate, AttendanceRecord
+
 def get_ist_date():
     ist = timezone.get_current_timezone()
     return timezone.now().astimezone(ist).date()
@@ -1362,7 +1383,7 @@ def get_ist_date():
 @login_required
 def todays_update(request):
     employee = get_object_or_404(Employee, admin=request.user)
-    today = get_ist_date()
+    today = timezone.now().date()
     schedule = DailySchedule.objects.filter(employee=employee, date=today).first()
 
     attendance_record = AttendanceRecord.objects.filter(
@@ -1373,7 +1394,7 @@ def todays_update(request):
     ).first()
 
     if attendance_record:
-        messages.error(request,"Can't update record after clock-out.  Only can view in your All Schedules")
+        messages.error(request, "Can't update record after clock-out. Only can view in your All Schedules")
         return redirect('employee_home')
     
     if not schedule:
@@ -1386,7 +1407,12 @@ def todays_update(request):
     if request.method == 'POST' and is_editable:
         update_description = request.POST.get('update_description', '')
         justification = request.POST.get('justification', '')
+        project_name = request.POST.get('project_name', '').strip()
         
+        # Validate project name (optional, since project is already in schedule)
+        if not project_name:
+            project_name = schedule.project  # Fall back to schedule's project if not provided
+
         # Validate updates
         updates = [line.strip() for line in update_description.split("\n") if line.strip()]
         invalid_updates = [u for u in updates if '|' not in u or len(u.split('|')) != 2]
@@ -1399,6 +1425,7 @@ def todays_update(request):
                 'today': today,
                 'is_editable': is_editable,
                 'justification': justification,
+                'project_name': project_name,
             })
 
         # Calculate total time spent and validate time format
@@ -1423,6 +1450,7 @@ def todays_update(request):
                     'today': today,
                     'is_editable': is_editable,
                     'justification': justification,
+                    'project_name': project_name,
                 })
 
         # Require justification if total time is less than 8 hours (480 minutes)
@@ -1434,6 +1462,7 @@ def todays_update(request):
                 'today': today,
                 'is_editable': is_editable,
                 'justification': justification,
+                'project_name': project_name,
             })
 
         if existing_update:
@@ -1452,6 +1481,7 @@ def todays_update(request):
                     'today': today,
                     'is_editable': is_editable,
                     'justification': justification,
+                    'project_name': project_name,
                 })
         else:
             # Create new
@@ -1472,6 +1502,7 @@ def todays_update(request):
                     'today': today,
                     'is_editable': is_editable,
                     'justification': justification,
+                    'project_name': project_name,
                 })
 
         return redirect('todays_update')
@@ -1481,6 +1512,7 @@ def todays_update(request):
         'update': existing_update,
         'today': today,
         'is_editable': is_editable,
+        'project_name': schedule.project if schedule.project else '',  # Use project directly
     })
 
 

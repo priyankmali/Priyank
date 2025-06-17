@@ -58,8 +58,12 @@ def clock_times(request):
                 clock_in_time = latest_entry.clock_in.astimezone(ZoneInfo('Asia/Kolkata'))
                 current_time = datetime.now(ZoneInfo('Asia/Kolkata'))
                 work_duration = current_time - clock_in_time
-
-                fixed_time = timedelta(hours=9)
+                
+                # determine worked duration based on the status
+                if latest_entry.status == 'half_day':
+                    fixed_time = timedelta(hours=4 , minutes=30)
+                else:
+                    fixed_time = timedelta(hours=8 , minutes=30)
 
                 if work_duration >= fixed_time:
                     context["complete_8Hours"] = True
@@ -93,9 +97,11 @@ def unread_notification_count(request):
     employee_leave_request_to_manager_count = 0
     manager_general_count = 0
     employee_clockout_request_to_manager_count = 0
-    employee_asset_claim_request_to_manager_count = 0
     employee_notification_from_manager_count = 0
     employee_leave_approved_or_rejected_notification_count = 0
+    employee_asset_request = 0
+    total_asset_unread_notifications = 0
+    total_unread_notifications = 0
 
     if request.user.is_authenticated:
         if request.user.user_type == '2':
@@ -104,6 +110,12 @@ def unread_notification_count(request):
                 is_read=False,
                 notification_type='general-notification',
                 role="manager"
+            ).count()
+
+            employee_asset_request_count = Notification.objects.filter(
+                is_read = False , 
+                notification_type = 'asset-notification',
+                role = 'manager'
             ).count()
 
             employee_leave_request_to_manager_count = Notification.objects.filter(
@@ -137,14 +149,17 @@ def unread_notification_count(request):
                 manager_general_count +
                 employee_leave_request_to_manager_count +
                 employee_clockout_request_to_manager_count +
-                employee_asset_claim_request_to_manager_count + manager_leave_request_from_ceo_count
+                employee_asset_request_count + manager_leave_request_from_ceo_count
             )
 
             total_unread_notifications_gen_leave_clockout = (
                 manager_general_count +
                 employee_leave_request_to_manager_count +
-                employee_clockout_request_to_manager_count +
-                employee_asset_claim_request_to_manager_count
+                employee_clockout_request_to_manager_count 
+            )
+
+            total_asset_unread_notifications = (
+                employee_asset_request_count
             )
 
             return {
@@ -152,9 +167,12 @@ def unread_notification_count(request):
                 'manager_general_count': manager_general_count,
                 'employee_leave_request_to_manager_count': employee_leave_request_to_manager_count,
                 'employee_clockout_request_to_manager_count': employee_clockout_request_to_manager_count,
-                'total_asset_unread_notifications': employee_asset_claim_request_to_manager_count,
                 'manager_leave_request_from_ceo_count' : manager_leave_request_from_ceo_count,
-                'total_unread_notifications_gen_leave_clockout' : total_unread_notifications_gen_leave_clockout
+                'total_unread_notifications_gen_leave_clockout' : total_unread_notifications_gen_leave_clockout,
+
+                'employee_asset_request_count' : employee_asset_request_count,
+                'total_asset_unread_notifications': total_asset_unread_notifications,
+                
             }
         
         elif request.user.user_type == '1':
@@ -202,10 +220,17 @@ def unread_notification_count(request):
                 role="employee"
             ).count()
 
+            employee_asset_request = Notification.objects.filter(
+                user = request.user , 
+                is_read = False , 
+                notification_type = 'asset-notification',
+                role = 'employee' 
+            ).count()
+
             total_unread_notifications = (
                 employee_notification_from_manager_count +
                 employee_leave_approved_or_rejected_notification_count +
-                employee_clockout_request_to_manager_count
+                employee_clockout_request_to_manager_count + employee_asset_request
             )
 
             total_general_unread_notification = (
@@ -217,7 +242,8 @@ def unread_notification_count(request):
                 'total_general_unread_notification' : total_general_unread_notification,
                 'employee_notification_from_manager_count': employee_notification_from_manager_count,
                 'employee_leave_approved_or_rejected_notification_count': employee_leave_approved_or_rejected_notification_count,
-                'employee_clockout_request_to_manager_count': employee_clockout_request_to_manager_count
+                'employee_clockout_request_to_manager_count': employee_clockout_request_to_manager_count,
+                'employee_asset_request' : employee_asset_request,
             }
     
     # Add a default return dictionary if the user is not authenticated
@@ -234,8 +260,10 @@ def unread_notification_count(request):
         'ceo_notification_from_employee_leave_request' : 0,
         'manager_leave_request_from_ceo_count' : 0,
         'total_unread_notifications_gen_leave_clockout' : 0,
-        'total_general_unread_notification' : 0
-        
+        'total_general_unread_notification' : 0,
+        'employee_asset_request' : 0,
+        'total_asset_notification' : 0,
+                
     }
        
 
@@ -551,3 +579,4 @@ def asset_notification_count(request):
         logging.error(f"Error in asset_notification_count context processor: {str(e)}")
     
     return context
+

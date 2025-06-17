@@ -74,7 +74,7 @@
                                         {% endif %}
                                         <div class="list-group-item d-flex justify-content-between">
                                             <span>Assigned by:</span>
-                                            <span>{{ asset.manager.get_full_name|default:asset.manager.username }}</span>
+                                            <span>{{ current_issuance.assigned_by }}</span>
                                         </div>
                                     {% endif %}
                                 </div>

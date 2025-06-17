@@ -4,7 +4,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 
 
 def generate_qrcode(asset_id):
-    asset_url = f'https://koliinfotech.company/koli-ems/asset-app/asset/{asset_id}/detail/'
+    asset_url = f'https://ems.koliinfotech.company/asset-app/asset/{asset_id}/detail/'
     
     # Generate the QR code
     qr = qrcode.make(asset_url)

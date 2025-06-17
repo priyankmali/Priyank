@@ -334,6 +334,27 @@
             background-color: #d1e0f5;
         }
 
+        /* Add Cancel Button Styles */
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .btn-cancel-form {
+            background-color: #e6f0fa;
+            color: #3897f0;
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-cancel-form:hover {
+            background-color: #d1e0f5;
+        }
+
         /* Responsive Adjustments */
         @media (max-width: 768px) {
             .profile-pic-container {
@@ -527,6 +548,15 @@
             console.log('Password toggle element:', passwordToggle);
             console.log('Password field element:', passwordField);
 
+            // Prevent Unintended Form Submission
+            profileForm.addEventListener('submit', function(e) {
+                console.log('Form submission attempted at:', new Date().toISOString());
+                if (!profileForm.dataset.submitting) {
+                    e.preventDefault();
+                    console.log('Form submission prevented');
+                }
+            });
+
             // Password Toggle Functionality
             if (passwordToggle && passwordField) {
                 console.log('Setting up password toggle event listener');
@@ -577,6 +607,7 @@
             });
 
             confirmYes.addEventListener('click', function() {
+                profileForm.dataset.submitting = 'true';
                 hideConfirmationPopup();
                 profileForm.submit();
             });
@@ -609,6 +640,7 @@
             }
 
             function closeModal() {
+                console.log('Modal closed at:', new Date().toISOString());
                 profileModal.classList.remove('show');
                 document.body.style.overflow = '';
                 document.body.style.paddingRight = '';

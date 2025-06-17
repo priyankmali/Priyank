@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import (HttpResponse,get_object_or_404, redirect, render)
+from django.shortcuts import get_object_or_404, redirect, render
 import requests,json
 from django.templatetags.static import static
 from django.urls import reverse
@@ -10,23 +10,16 @@ from .forms import *
 from .models import *
 from collections import defaultdict
 from calendar import monthrange
-from datetime import datetime,timedelta
 from decimal import Decimal
 from django.template.loader import get_template
-from django.contrib.auth.decorators import login_required
 from asset_app.models import AssetIssue,AssetsIssuance,AssetAssignmentHistory
 from django.db.models import Count,Q
 from django.core.paginator import Paginator,EmptyPage,PageNotAnInteger
 from main_app.notification_badge import send_notification
 from django.template.loader import render_to_string
-from django.core.paginator import Paginator
-from .models import AttendanceRecord, Holiday, Employee, Manager
 from xhtml2pdf import pisa
-from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
-from django.core.paginator import Paginator
 from datetime import date, datetime, timedelta
 from django.utils import timezone
 from dateutil.parser import parse
@@ -310,6 +303,8 @@ def add_employee(request):
             messages.error(request, "Please fill all the details correctly.")
 
     return render(request, 'ceo_template/add_employee_template.html', context)
+
+
 
 
 
@@ -1018,6 +1013,8 @@ def manager_feedback_message(request):
         })
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    
+    
 
 @login_required
 @csrf_exempt
@@ -1178,19 +1175,32 @@ def view_employee_leave(request):
                             return HttpResponse("False")
 
                         # Update or create attendance record
-                        record, created = AttendanceRecord.objects.update_or_create(
-                            user=employee.admin,
-                            date=current_date,
-                            defaults={
-                                'status': 'half_day' if leave.leave_type == 'Half-Day' else 'leave',
-                                'department': employee.department,
-                                'clock_in': None,
-                                'clock_out': None,
-                                'total_worked': None,
-                                'regular_hours': None,
-                                'overtime_hours': None
-                            }
-                        )
+                        
+                        if leave.leave_type == 'Half-Day':
+                            # for half_day leave
+                            record, created = AttendanceRecord.objects.update_or_create(
+                                user = employee.admin , 
+                                date = current_date ,
+                                defaults = {
+                                    'status' : 'half_day',
+                                    'department' : employee.department,
+                                    'notes': f"Approved half-day leave"
+                                }
+                            )
+                        else:
+                            record, created = AttendanceRecord.objects.update_or_create(
+                                user=employee.admin,
+                                date=current_date,
+                                defaults={
+                                    'status': 'leave',
+                                    'department': employee.department,
+                                    'clock_in': None,
+                                    'clock_out': None,
+                                    'total_worked': None,
+                                    'regular_hours': None,
+                                    'overtime_hours': None
+                                }
+                            )
                         current_date += timedelta(days=1)
 
                     # Prepare notification message
@@ -1322,27 +1332,12 @@ def send_bulk_manager_notification(request):
             return JsonResponse({'success': False, 'message': 'No managers found'}, status=400)
         
         for manager in managers:
-            # FCM notification (uncommented as in original)
-            if manager.admin.fcm_token:
-                url = "https://fcm.googleapis.com/fcm/send"
-                body = {
-                    'notification': {
-                        'title': "KoliInfoTech",
-                        'body': message,
-                        'click_action': reverse('manager_view_notification'),
-                        'icon': static('dist/img/AdminLTELogo.png')
-                    },
-                    'to': manager.admin.fcm_token
-                }
-                headers = {
-                    'Authorization': 'key=AAAA3Bm8j_M:APA91bElZlOLetwV696SoEtgzpJr2qbxBfxVBfDWFiopBWzfCfzQp2nRyC7_A2mlukZEHV4g1AmyC6P_HonvSkY2YyliKt5tT3fe_1lrKod2Daigzhb2xnYQMxUWjCAIQcUexAMPZePB',
-                    'Content-Type': 'application/json'
-                }
-                requests.post(url, data=json.dumps(body), headers=headers)
-            
-            # Save notification to database
+            # create NotificationManager entry
             notification = NotificationManager(manager=manager, message=message)
             notification.save()
+
+            user = CustomUser.objects.get(id=manager.admin.id)
+            send_notification(user, message, "general-notification", notification.id, "manager")
         
         return JsonResponse({'success': True, 'message': 'Bulk notification sent successfully'})
     except Exception as e:
@@ -1372,26 +1367,12 @@ def send_selected_manager_notification(request):
     try:
         for manager_id in manager_ids:
             manager = get_object_or_404(Manager, admin_id=manager_id)
-            if manager.admin.fcm_token:
-                url = "https://fcm.googleapis.com/fcm/send"
-                body = {
-                    'notification': {
-                        'title': "KoliInfoTech",
-                        'body': message,
-                        'click_action': reverse('manager_view_notification'),
-                        'icon': static('dist/img/AdminLTELogo.png')
-                    },
-                    'to': manager.admin.fcm_token
-                }
-                headers = {
-                    'Authorization': 'key=AAAA3Bm8j_M:APA91bElZlOLetwV696SoEtgzpJr2qbxBfxVBfDWFiopBWzfCfzQp2nRyC7_A2mlukZEHV4g1AmyC6P_HonvSkY2YyliKt5tT3fe_1lrKod2Daigzhb2xnYQMxUWjCAIQcUexAMPZePB',
-                    'Content-Type': 'application/json'
-                }
-                requests.post(url, data=json.dumps(body), headers=headers)
-            
-            # Save notification to database
+            # create NotificationManager entry
             notification = NotificationManager(manager=manager, message=message)
             notification.save()
+
+            user = CustomUser.objects.get(id=manager.admin.id)
+            send_notification(user, message, "general-notification", notification.id, "manager")
         
         return JsonResponse({'success': True, 'message': 'Notification sent to selected managers'})
     except Exception as e:
@@ -1596,6 +1577,8 @@ def delete_department(request, department_id):
     return redirect(reverse('manage_department'))
 
 
+
+
 @require_POST
 @login_required
 def get_department_data(request):
@@ -1603,9 +1586,9 @@ def get_department_data(request):
         department_id = request.POST.get('department')
 
         data = {
-            'employees' : [],
-            'managers' : [],
-            'status' : 'success'
+            'employees': [],
+            'managers': [],
+            'status': 'success'
         }
         try:
             if department_id and department_id != 'all':
@@ -1613,14 +1596,17 @@ def get_department_data(request):
                 managers = Manager.objects.filter(department_id=department_id).select_related('admin')
                 
                 data['employees'] = [{
-                    'id' : emp.admin.id,
-                    'name' : f'{emp.admin.get_full_name()}'
+                    'id': emp.admin.id,
+                    'name': f'{emp.admin.get_full_name()}'
                 } for emp in employees]
 
                 data['managers'] = [{
-                    'id' : mag.admin.id,
-                    'name' : f"{mag.admin.get_full_name()}"
+                    'id': mag.admin.id,
+                    'name': f"{mag.admin.get_full_name()}"
                 } for mag in managers]
+
+                # Debug log to inspect the response
+                print(f"Department ID: {department_id}, Employees: {data['employees']}, Managers: {data['managers']}")
 
             return JsonResponse(data)
 
@@ -1629,7 +1615,9 @@ def get_department_data(request):
                 'status': 'error',
                 'message': str(e)
             }, status=400)
-
+            
+            
+            
 
 @login_required
 def generate_performance_report(request):
@@ -1654,30 +1642,46 @@ def generate_performance_report(request):
             year = int(year)
             month = int(month)
             
-            # Get employees and managers based on selection
-            employees = Employee.objects.all()
-            managers = Manager.objects.all()
+            # Initialize empty querysets for employees and managers
+            employees = Employee.objects.none()
+            managers = Manager.objects.none()
 
-            if department_id and department_id != 'all':
-                employees = employees.filter(department_id=department_id)
-                managers = managers.filter(department_id=department_id)
+            # Fetch employees only if employee_ids are provided
             if employee_ids:
-                employees = employees.filter(admin__id__in=employee_ids)
+                employees = Employee.objects.filter(admin__id__in=employee_ids)
+                if department_id and department_id != 'all':
+                    employees = employees.filter(department_id=department_id)
+
+            # Fetch managers only if manager_ids are provided
             if manager_ids:
-                managers = managers.filter(admin__id__in=manager_ids)
-            
+                managers = Manager.objects.filter(admin__id__in=manager_ids)
+                if department_id and department_id != 'all':
+                    managers = managers.filter(department_id=department_id)
+
+            # For "All Departments" case, fetch all if no specific IDs are provided
+            if department_id == 'all' and not employee_ids and not manager_ids:
+                employees = Employee.objects.all()
+                managers = Manager.objects.all()
+
             # Process each employee and manager
             all_reports = []
             
             # Process employees
             for employee in employees:
                 report = generate_individual_report(employee.admin, year, month)
+                print(f"Employee Report: {report['employee'].admin.get_full_name()} (ID: {employee.admin.id})")
                 all_reports.append(report)
             
             # Process managers
             for manager in managers:
                 report = generate_individual_report(manager.admin, year, month)
+                print(f"Manager Report: {report['employee'].admin.get_full_name()} (ID: {manager.admin.id})")
                 all_reports.append(report)
+
+            # Ensure at least one report is generated
+            if not all_reports:
+                messages.error(request, "No employees or managers found for the selected criteria.")
+                return redirect('generate_performance_report')
             
             # For HTML preview
             if 'generate_html' in request.POST:
@@ -1737,6 +1741,8 @@ def generate_performance_report(request):
     }
     return render(request, 'ceo_template/generate_report.html', context)
 
+
+
 def generate_individual_report(user, year, month):
     """Helper function to generate report for a single user (employee or manager)"""
     # Get the number of days in the selected month
@@ -1750,7 +1756,6 @@ def generate_individual_report(user, year, month):
     late_days = 0
     half_days = 0
     absent_days = 0
-    total_breaks = 0
     total_worked = timedelta()
     total_regular = timedelta()
     total_overtime = timedelta()
@@ -1793,16 +1798,6 @@ def generate_individual_report(user, year, month):
                 leave_days[current_date] += Decimal('0.5')
             current_date += timedelta(days=1)
 
-    # Prefetch break records for all attendance records
-    attendance_ids = [ar.id for ar in attendance_records]
-    break_records = Break.objects.filter(
-        attendance_record_id__in=attendance_ids
-    )
-    # Create a mapping of attendance ID to break records
-    breaks_map = defaultdict(list)
-    for br in break_records:
-        breaks_map[br.attendance_record_id].append(br)
-
     # Process each day of the month
     for day in range(1, num_days + 1):
         current_date = datetime(year, month, day).date()
@@ -1818,8 +1813,7 @@ def generate_individual_report(user, year, month):
             'is_weekend': is_weekend,
             'attendance': None,
             'leave': 0.0,
-            'breaks_taken': 0,
-            'total_break_time': timedelta(),
+            'total_worked_hours': None,
             'status': None
         }
 
@@ -1835,27 +1829,15 @@ def generate_individual_report(user, year, month):
             
             if attendance:
                 day_status['attendance'] = attendance
-                day_status['status'] = attendance.status
+                day_status['status'] = attendance.status.lower()  # Ensure status is lowercase for template
 
-                # increase present for any status (present , late , half_day)
+                # Increase present for any status (present, late, half_day)
                 present_days += 1
                 
-                # Process breaks
-                for br in breaks_map.get(attendance.id, []):
-                    if br.break_end:
-                        break_duration = br.duration if br.duration else (br.break_end - br.break_start)
-                        day_status['total_break_time'] += break_duration
-                        day_status['breaks_taken'] += 1
-                
-                # total breaks
-                total_breaks += day_status['breaks_taken']
-
-                # # Handle attendance status
-                # if attendance.status == 'present':
-                #     present_days += 1
-                if attendance.status == 'late':
+                # Handle attendance status
+                if attendance.status.lower() == 'late':
                     late_days += 1
-                elif attendance.status == 'half_day':
+                elif attendance.status.lower() == 'half_day':
                     if current_date not in half_day_counted:
                         half_days += 1
                         half_day_counted.add(current_date)
@@ -1867,13 +1849,15 @@ def generate_individual_report(user, year, month):
                     if current_date not in half_day_counted:
                         half_days += 1
                         half_day_counted.add(current_date)
-
-                    # reduce present day by 0.5
+                    # Reduce present day by 0.5
                     present_days -= 0.5
 
                 # Add working hours
                 if attendance.total_worked:
                     total_worked += attendance.total_worked
+                    day_status['total_worked_hours'] = round(attendance.total_worked.total_seconds() / 3600, 2)
+                else:
+                    day_status['total_worked_hours'] = 0.0  # Default to 0 if no hours recorded
                 if attendance.regular_hours:
                     total_regular += attendance.regular_hours
                 if attendance.overtime_hours:
@@ -1887,7 +1871,6 @@ def generate_individual_report(user, year, month):
                     if current_date not in half_day_counted:
                         half_days += 1
                         half_day_counted.add(current_date)
-
                     # Count half-day leave as presence
                     present_days += 0.5  
                 else:
@@ -1899,12 +1882,16 @@ def generate_individual_report(user, year, month):
                 day_status['status'] = 'absent'
                 absent_days += 1
 
+        # Debug log for June 12, 2025
+        if current_date == datetime(2025, 6, 12).date():
+            print(f"Date: {current_date}, Status: {day_status['status']}, Total Worked Hours: {day_status['total_worked_hours']}")
+
         daily_records.append(day_status)
 
     # Convert timedelta to hours
-    total_worked_hours = total_worked.total_seconds() / 3600
-    total_regular_hours = total_regular.total_seconds() / 3600
-    total_overtime_hours = total_overtime.total_seconds() / 3600
+    total_worked_hours = round(total_worked.total_seconds() / 3600, 2)
+    total_regular_hours = round(total_regular.total_seconds() / 3600, 2)
+    total_overtime_hours = round(total_overtime.total_seconds() / 3600, 2)
     
     # Determine if this is an employee or manager
     if hasattr(user, 'employee'):
@@ -1925,10 +1912,9 @@ def generate_individual_report(user, year, month):
         'half_days': half_days,
         'late_days': late_days,
         'absent_days': absent_days,
-        'total_breaks': total_breaks, 
-        'total_worked_hours': round(total_worked_hours, 2),
-        'total_regular_hours': round(total_regular_hours, 2),
-        'total_overtime_hours': round(total_overtime_hours, 2),
+        'total_worked_hours': total_worked_hours,
+        'total_regular_hours': total_regular_hours,
+        'total_overtime_hours': total_overtime_hours,
         'total_working_days': working_days,
     }
 
@@ -2265,6 +2251,8 @@ def admin_view_notification(request):
     }
 
     return render(request, "ceo_template/admin_view_notification.html", context)
+
+
  
 @login_required   
 def approve_admin_leave_request(request, leave_id):
@@ -2306,6 +2294,8 @@ def approve_admin_leave_request(request, leave_id):
 
     return redirect('admin_view_notification')
 
+
+
 @login_required   
 def reject_admin_leave_request(request, leave_id):
     if request.method == 'POST':
@@ -2337,6 +2327,8 @@ def reject_admin_leave_request(request, leave_id):
             messages.info(request, "This leave request has already been processed.")
 
     return redirect('admin_view_notification')
+
+
 
 @login_required
 def admin_view_attendance(request):
@@ -2372,10 +2364,6 @@ def admin_view_attendance(request):
         'current_month': current_month
     }
     return render(request, 'ceo_template/admin_view_attendance.html', context)
-
-
-
-
 
 
 

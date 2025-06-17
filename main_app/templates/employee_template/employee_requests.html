@@ -237,7 +237,6 @@
                             <tr>
                                 <th style="width: 20%">Asset</th>
                                 <th style="width: 20%">Serial No</th>
-                                <th style="width: 20%">Manager</th>
                                 <th style="width: 15%">Status</th>
                                 <th style="width: 15%">Requested</th>
                                 <th style="width: 10%">Actions</th>
@@ -248,7 +247,6 @@
                                 <tr class="notification-text" data-notification-id="{{ claim.id }}">
                                     <td>{{ claim.asset.asset_name }}</td>
                                     <td><code>{{ claim.asset.asset_serial_number }}</code></td>
-                                    <td>{{ claim.manager.get_full_name|default:claim.manager.username }}</td>
                                     <td>
                                         {% if claim.status == "Pending" %}
                                             <span class="badge badge-pending">Pending</span>
@@ -262,7 +260,7 @@
                                     <td>
                                         <div class="btn-group btn-group-sm">
                                             <button type="button" class="btn btn-info" data-toggle="modal" 
-                                                    data-target="#assetClaimModal-{{ claim.id }}" title="View Details" onclick="markNotificationRead({{ claim.id }}, 'asset-claim')">
+                                                    data-target="#assetClaimModal-{{ claim.id }}" title="View Details" onclick="markNotificationRead({{ claim.id }}, 'asset-notification')">
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                             {% if claim.id in unread_notifications %}
@@ -414,14 +412,14 @@
                                         <div class="message-preview">
                                             {{ issue.notes|truncatechars:50 }}
                                             {% if issue.notes|length > 50 %}
-                                            <a href="#" data-toggle="modal" data-target="#assetIssueModal-{{ issue.id }}" onclick="markNotificationRead({{ issue.id }}, 'asset-issue')">Read more</a>
+                                            <a href="#" data-toggle="modal" data-target="#assetIssueModal-{{ issue.id }}" onclick="markNotificationRead({{ issue.id }}, 'asset-notification')">Read more</a>
                                             {% endif %}
                                         </div>
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
                                             <button type="button" class="btn btn-info" data-toggle="modal" 
-                                                    data-target="#assetIssueModal-{{ issue.id }}" title="View Details" onclick="markNotificationRead({{ issue.id }}, 'asset-issue')">
+                                                    data-target="#assetIssueModal-{{ issue.id }}" title="View Details" onclick="markNotificationRead({{ issue.id }}, 'asset-notification')">
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                             {% if issue.id in unread_notifications %}

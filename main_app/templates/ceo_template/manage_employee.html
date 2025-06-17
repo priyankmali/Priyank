@@ -637,6 +637,7 @@ $(document).on('click', '#allocateBundleBtn', function() {
                 
                 var expectedCategories = ['Laptop', 'Keyboard', 'Mouse', 'Cooling Pad', 'Monitor'];
                 var availableCategories = bundleAssets.map(asset => asset.asset_category.toLowerCase());
+                console.log(availableCategories);
                 var missingCategories = expectedCategories.filter(category => !availableCategories.includes(category.toLowerCase()));
 
                 if (missingCategories.length > 0) {

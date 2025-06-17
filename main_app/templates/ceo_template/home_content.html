@@ -167,286 +167,290 @@
 </style>
 {% endblock custom_css %}
 
-{% block content %}
-<section class="content">
-    <div class="container-fluid">
-        <!-- Key Metrics Row -->
-        <div class="row">
-            <!-- Total Employees -->
-            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
-                <div class="card bg-gradient-primary text-white h-100 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-uppercase mb-1">Total Employees</h6>
-                                <h2 class="mb-0">{{ total_employees }}</h2>
-                            </div>
-                            <div class="icon-circle bg-white-20">
-                                <i class="fas fa-users"></i>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="{% url 'manage_employee' %}" class="text-white text-decoration-none small">
-                                View all <i class="fas fa-arrow-right ml-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Total Managers -->
-            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
-                <div class="card bg-gradient-success text-white h-100 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-uppercase mb-1">Total Managers</h6>
-                                <h2 class="mb-0">{{ total_managers }}</h2>
-                            </div>
-                            <div class="icon-circle bg-white-20">
-                                <i class="fas fa-user-tie"></i>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="{% url 'manage_manager' %}" class="text-white text-decoration-none small">
-                                View all <i class="fas fa-arrow-right ml-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Total Employee Leave -->
-            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
-                <div class="card bg-gradient-warning text-white h-100 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-uppercase mb-1">Employee Leave Applied</h6>
-                                <h2 class="mb-0">{{ employee_applied_leave }}</h2>
-                            </div>
-                            <div class="icon-circle bg-white-20">
-                                <i class="fas fa-calendar-alt"></i>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="{% url 'view_employee_leave' %}" class="text-white text-decoration-none small">
-                                View all <i class="fas fa-arrow-right ml-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Total Manager Leave -->
-            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
-                <div class="card bg-gradient-danger text-white h-100 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-uppercase mb-1">Manager Leave Applied</h6>
-                                <h2 class="mb-0">{{ manager_applied_leave }}</h2>
-                            </div>
-                            <div class="icon-circle bg-white-20">
-                                <i class="fas fa-calendar-alt"></i>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="{% url 'view_manager_leave' %}" class="text-white text-decoration-none small">
-                                View all <i class="fas fa-arrow-right ml-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Employees on Break -->
-            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
-                <div class="card bg-gradient-info text-white h-100 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-uppercase mb-1">Employees on Break</h6>
-                                <h2 class="mb-0">{{ total_employee_on_break }}</h2>
-                            </div>
-                            <div class="icon-circle bg-white-20">
-                                <i class="fas fa-mug-hot"></i>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="#" class="text-white text-decoration-none small"> </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Managers on Break -->
-            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
-                <div class="card bg-gradient-secondary text-white h-100 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-uppercase mb-1">Managers on Break</h6>
-                                <h2 class="mb-0">{{ total_manager_on_break }}</h2>
-                            </div>
-                            <div class="icon-circle bg-white-20">
-                                <i class="fas fa-mug-hot"></i>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="#" class="text-white text-decoration-none small"> </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Total Departments -->
-            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
-                <div class="card bg-pattern-1 text-white h-100 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-uppercase mb-1">Total Departments</h6>
-                                <h2 class="mb-0">{{ total_department }}</h2>
-                            </div>
-                            <div class="icon-circle bg-white-20">
-                                <i class="fas fa-building"></i>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="{% url 'manage_department' %}" class="text-white text-decoration-none small">
-                                View all <i class="fas fa-arrow-right ml-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Total Divisions -->
-            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
-                <div class="card bg-pattern-2 text-white h-100 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-uppercase mb-1">Total Divisions</h6>
-                                <h2 class="mb-0">{{ total_division }}</h2>
-                            </div>
-                            <div class="icon-circle bg-white-20">
-                                <i class="fas fa-sitemap"></i>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <a href="{% url 'manage_division' %}" class="text-white text-decoration-none small">
-                                View all <i class="fas fa-arrow-right ml-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+{% block notification %}
+    {% include "main_app/notification_base.html" %}
+{% endblock %}
 
-        <!-- Time History Section -->
-        <div class="row">
-            <!-- Combined Break History -->
-            <div class="col-lg-12 mb-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-dark text-white">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap">
-                            <h5 class="card-title mb-2 mb-md-0"> Today's Manager & Employee Breaks</h5>
-                            <form method="get" id="breakFilterForm" class="date-filter-group">
-                                <div class="form-group">
-                                    <select id="department" name="department" class="form-control form-control-sm">
-                                        <option value="all" {% if selected_department == 'all' %}selected{% endif %}>All Departments</option>
-                                        {% for dept in departments %}
-                                            <option value="{{ dept.name|lower }}" {% if selected_department == dept.name|lower %}selected{% endif %}>{{ dept.name }}</option>
-                                        {% endfor %}
-                                    </select>
+{% block content %}
+    <section class="content">
+        <div class="container-fluid">
+            <!-- Key Metrics Row -->
+            <div class="row">
+                <!-- Total Employees -->
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
+                    <div class="card bg-gradient-primary text-white h-100 shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-uppercase mb-1">Total Employees</h6>
+                                    <h2 class="mb-0">{{ total_employees }}</h2>
                                 </div>
-                                <div class="form-group">
-                                    <label for="break_start_date">From:</label>
-                                    <input type="text" name="start_date" id="break_start_date" class="form-control form-control-sm flatpickr-input" 
-                                           value="{{ start_date }}" placeholder="Select Date" readonly>
+                                <div class="icon-circle bg-white-20">
+                                    <i class="fas fa-users"></i>
                                 </div>
-                                <div class="form-group">
-                                    <label for="break_end_date">To:</label>
-                                    <input type="text" name="end_date" id="break_end_date" class="form-control form-control-sm flatpickr-input" 
-                                           value="{{ end_date }}" placeholder="Select Date" readonly>
-                                </div>
-                            </form>
+                            </div>
+                            <div class="mt-4">
+                                <a href="{% url 'manage_employee' %}" class="text-white text-decoration-none small">
+                                    View all <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive" id="break-entries-container">
-                            <table class="table table-hover mb-0">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>No</th>
-                                        <th>Name</th>
-                                        <th>Type</th>
-                                        <th>Department</th>
-                                        <th>Break Start</th>
-                                        <th>Break End</th>
-                                        <th>Duration (mins)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="break-entries-body">
-                                    {% for entry in break_entries %}
+                </div>
+                <!-- Total Managers -->
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
+                    <div class="card bg-gradient-success text-white h-100 shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-uppercase mb-1">Total Managers</h6>
+                                    <h2 class="mb-0">{{ total_managers }}</h2>
+                                </div>
+                                <div class="icon-circle bg-white-20">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <a href="{% url 'manage_manager' %}" class="text-white text-decoration-none small">
+                                    View all <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Total Employee Leave -->
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
+                    <div class="card bg-gradient-warning text-white h-100 shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-uppercase mb-1">Employee Leave Applied</h6>
+                                    <h2 class="mb-0">{{ employee_applied_leave }}</h2>
+                                </div>
+                                <div class="icon-circle bg-white-20">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <a href="{% url 'view_employee_leave' %}" class="text-white text-decoration-none small">
+                                    View all <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Total Manager Leave -->
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
+                    <div class="card bg-gradient-danger text-white h-100 shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-uppercase mb-1">Manager Leave Applied</h6>
+                                    <h2 class="mb-0">{{ manager_applied_leave }}</h2>
+                                </div>
+                                <div class="icon-circle bg-white-20">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <a href="{% url 'view_manager_leave' %}" class="text-white text-decoration-none small">
+                                    View all <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Employees on Break -->
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
+                    <div class="card bg-gradient-info text-white h-100 shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-uppercase mb-1">Employees on Break</h6>
+                                    <h2 class="mb-0">{{ total_employee_on_break }}</h2>
+                                </div>
+                                <div class="icon-circle bg-white-20">
+                                    <i class="fas fa-mug-hot"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <a href="#" class="text-white text-decoration-none small"> </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Managers on Break -->
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
+                    <div class="card bg-gradient-secondary text-white h-100 shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-uppercase mb-1">Managers on Break</h6>
+                                    <h2 class="mb-0">{{ total_manager_on_break }}</h2>
+                                </div>
+                                <div class="icon-circle bg-white-20">
+                                    <i class="fas fa-mug-hot"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <a href="#" class="text-white text-decoration-none small"> </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Total Departments -->
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
+                    <div class="card bg-pattern-1 text-white h-100 shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-uppercase mb-1">Total Departments</h6>
+                                    <h2 class="mb-0">{{ total_department }}</h2>
+                                </div>
+                                <div class="icon-circle bg-white-20">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <a href="{% url 'manage_department' %}" class="text-white text-decoration-none small">
+                                    View all <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Total Divisions -->
+                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 mb-4">
+                    <div class="card bg-pattern-2 text-white h-100 shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-uppercase mb-1">Total Divisions</h6>
+                                    <h2 class="mb-0">{{ total_division }}</h2>
+                                </div>
+                                <div class="icon-circle bg-white-20">
+                                    <i class="fas fa-sitemap"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <a href="{% url 'manage_division' %}" class="text-white text-decoration-none small">
+                                    View all <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time History Section -->
+            <div class="row">
+                <!-- Combined Break History -->
+                <div class="col-lg-12 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-dark text-white">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                <h5 class="card-title mb-2 mb-md-0"> Manager & Employee Breaks</h5>
+                                <form method="get" id="breakFilterForm" class="date-filter-group">
+                                    <div class="form-group">
+                                        <select id="department" name="department" class="form-control form-control-sm">
+                                            <option value="all" {% if selected_department == 'all' %}selected{% endif %}>All Departments</option>
+                                            {% for dept in departments %}
+                                                <option value="{{ dept.name|lower }}" {% if selected_department == dept.name|lower %}selected{% endif %}>{{ dept.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="break_start_date">From:</label>
+                                        <input type="text" name="start_date" id="break_start_date" class="form-control form-control-sm flatpickr-input" 
+                                            value="{{ start_date }}" placeholder="Select Date" readonly>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="break_end_date">To:</label>
+                                        <input type="text" name="end_date" id="break_end_date" class="form-control form-control-sm flatpickr-input" 
+                                            value="{{ end_date }}" placeholder="Select Date" readonly>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive" id="break-entries-container">
+                                <table class="table table-hover mb-0">
+                                    <thead class="thead-light">
                                         <tr>
-                                            <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
-                                            <td>{{ entry.user_name|default:"Unknown" }}</td>
-                                            <td>{{ entry.user_type }}</td>
-                                            <td>{{ entry.department }}</td>
-                                            <td>{{ entry.break_start }}</td>
-                                            <td>{{ entry.break_end }}</td>
-                                            <td>{{ entry.break_duration }} min</td>
+                                            <th>No</th>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Department</th>
+                                            <th>Break Start</th>
+                                            <th>Break End</th>
+                                            <th>Duration (mins)</th>
                                         </tr>
-                                    {% empty %}
-                                        <tr>
-                                            <td colspan="7" class="text-center py-4 text-muted">
-                                                <i class="fas fa-coffee fa-2x mb-2"></i><br>
-                                                No break entries found
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% if page_obj.has_other_pages %}
-                                <nav aria-label="Break entries pagination" id="break-entries-pagination">
-                                    <ul class="pagination justify-content-center mt-3">
-                                        {% if page_obj.has_previous %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page=1" data-page="1" data-section="break" aria-label="First">
-                                                    <span aria-hidden="true">««</span>
-                                                </a>
-                                            </li>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" data-page="{{ page_obj.previous_page_number }}" data-section="break" aria-label="Previous">
-                                                    <span aria-hidden="true">«</span>
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                        {% for num in page_obj.paginator.page_range %}
-                                            {% if page_obj.number == num %}
-                                                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
-                                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                                <li class="page-item"><a class="page-link" href="?page={{ num }}" data-page="{{ num }}" data-section="break">{{ num }}</a></li>
-                                            {% endif %}
+                                    </thead>
+                                    <tbody id="break-entries-body">
+                                        {% for entry in break_entries %}
+                                            <tr>
+                                                <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                                                <td>{{ entry.user_name|default:"Unknown" }}</td>
+                                                <td>{{ entry.user_type }}</td>
+                                                <td>{{ entry.department }}</td>
+                                                <td>{{ entry.break_start }}</td>
+                                                <td>{{ entry.break_end }}</td>
+                                                <td>{{ entry.break_duration }} min</td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="7" class="text-center py-4 text-muted">
+                                                    <i class="fas fa-coffee fa-2x mb-2"></i><br>
+                                                    No break entries found
+                                                </td>
+                                            </tr>
                                         {% endfor %}
-                                        {% if page_obj.has_next %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}" data-page="{{ page_obj.next_page_number }}" data-section="break" aria-label="Next">
-                                                    <span aria-hidden="true">»</span>
-                                                </a>
-                                            </li>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" data-page="{{ page_obj.paginator.num_pages }}" data-section="break" aria-label="Last">
-                                                    <span aria-hidden="true">»»</span>
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    </ul>
-                                </nav>
-                            {% endif %}
+                                    </tbody>
+                                </table>
+                                {% if page_obj.has_other_pages %}
+                                    <nav aria-label="Break entries pagination" id="break-entries-pagination">
+                                        <ul class="pagination justify-content-center mt-3">
+                                            {% if page_obj.has_previous %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page=1" data-page="1" data-section="break" aria-label="First">
+                                                        <span aria-hidden="true">««</span>
+                                                    </a>
+                                                </li>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" data-page="{{ page_obj.previous_page_number }}" data-section="break" aria-label="Previous">
+                                                        <span aria-hidden="true">«</span>
+                                                    </a>
+                                                </li>
+                                            {% endif %}
+                                            {% for num in page_obj.paginator.page_range %}
+                                                {% if page_obj.number == num %}
+                                                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                                    <li class="page-item"><a class="page-link" href="?page={{ num }}" data-page="{{ num }}" data-section="break">{{ num }}</a></li>
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if page_obj.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" data-page="{{ page_obj.next_page_number }}" data-section="break" aria-label="Next">
+                                                        <span aria-hidden="true">»</span>
+                                                    </a>
+                                                </li>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" data-page="{{ page_obj.paginator.num_pages }}" data-section="break" aria-label="Last">
+                                                        <span aria-hidden="true">»»</span>
+                                                    </a>
+                                                </li>
+                                            {% endif %}
+                                        </ul>
+                                    </nav>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 {% endblock content %}
 
 {% block custom_js %}

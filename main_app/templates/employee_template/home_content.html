@@ -228,344 +228,348 @@
 </style>
 {% endblock custom_css %}
 
+{% block notification %}
+    {% include "main_app/notification_base.html" %}
+{% endblock %}
+
 {% block content %}
-<section class="content">
-    <div class="alert alert-info alert-dismissible shadow-sm">
-        <button type="button" class="close" data-dismiss="alert" aria-label="Close">×</button>
-        <h5>
-            <i class="icon fas fa-info-circle"></i> Today’s Work Summary :-
-            {% if today_status == 'Clocked In' %}
-                <span class="badge bg-success clocked-status clocked-in">currently clocked in</span>
-            {% elif today_status == 'Clocked Out' %}
-                <span class="badge bg-secondary clocked-status clocked-out">currently clocked out</span>
-            {% endif %}
-        </h5>
-        <p>
-            <strong>Status:</strong>
-            {% if today_record %}
-                {% if today_record.status == 'present' %}
-                    <span class="badge badge-present">Present</span>
-                {% elif today_record.status == 'late' %}
-                    <span class="badge bg-orange">Late</span>
-                {% elif today_record.status == 'half_day' %}
-                    <span class="badge bg-secondary">Half-Day</span>
-                {% elif today_record.status == 'absent' %}
-                    <span class="badge bg-danger">Absent</span>
+    <section class="content">
+        <div class="alert alert-info alert-dismissible shadow-sm">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">×</button>
+            <h5>
+                <i class="icon fas fa-info-circle"></i> Today’s Work Summary :-
+                {% if today_status == 'Clocked In' %}
+                    <span class="badge bg-success clocked-status clocked-in">currently clocked in</span>
+                {% elif today_status == 'Clocked Out' %}
+                    <span class="badge bg-secondary clocked-status clocked-out">currently clocked out</span>
                 {% endif %}
-            {% else %}
-                <span class="badge bg-danger">Not Clocked In Today</span>
-            {% endif %}
-            {% if today_late and today_record.status != 'late' %}
-                <span class="badge bg-orange">Late</span>
-            {% endif %}
-            {% if today_half_day and today_record.status != 'half_day' %}
-                <span class="badge bg-secondary">Half Day</span>
-            {% endif %}
-            <span class="badge bg-warning late-by-badge">
-                Late by: {{ today_late_duration_str|default:"0 hours 0 minutes" }}
-            </span>
-        </p>
-    </div>
-
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-gradient-success">
-                    <div class="inner">
-                        <h3>{{ attendance_stats.present_days }}</h3>
-                        <p>Present Days</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-user-check"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-gradient-warning">
-                    <div class="inner">
-                        <h3>{{ attendance_stats.late_days }}</h3>
-                        <p>Late Days</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-gradient-secondary">
-                    <div class="inner">
-                        <h3>{{ attendance_stats.half_days }}</h3>
-                        <p>Half Days</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-user-clock"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-gradient-danger">
-                    <div class="inner">
-                        <h3>{{ attendance_stats.absent_days }}</h3>
-                        <p>Absent Days</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-user-times"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-gradient-primary">
-                    <div class="inner">
-                        <h3>{{ attendance_stats.attendance_percentage }}<sup style="font-size: 20px">%</sup></h3>
-                        <p>Attendance Percentage</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-percentage"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-pattern-1">
-                    <div class="inner">
-                        <h3>{{ total_available_leaves|floatformat:1 }}</h3>
-                        <p>Total Available Leaves</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-pattern-3">
-                    <div class="inner">
-                        <h3>{{ attendance_stats.todays_total_breaks }}</h3>
-                        <p>Today’s Total Breaks</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-user-minus"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-pattern-4">
-                    <div class="inner">
-                        <h3>{{ attendance_stats.total_breaks_in_month }}</h3>
-                        <p>Monthly Total Breaks</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-user-minus"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-4">
-                <div class="small-box bg-gradient-info">
-                    <div class="inner">
-                        <h3>{{ attendance_stats.total_days }}</h3>
-                        <p>Total Working Days</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
-                </div>
-            </div>
+            </h5>
+            <p>
+                <strong>Status:</strong>
+                {% if today_record %}
+                    {% if today_record.status == 'present' %}
+                        <span class="badge badge-present">Present</span>
+                    {% elif today_record.status == 'late' %}
+                        <span class="badge bg-orange">Late</span>
+                    {% elif today_record.status == 'half_day' %}
+                        <span class="badge bg-secondary">Half-Day</span>
+                    {% elif today_record.status == 'absent' %}
+                        <span class="badge bg-danger">Absent</span>
+                    {% endif %}
+                {% else %}
+                    <span class="badge bg-danger">Not Clocked In Today</span>
+                {% endif %}
+                {% if today_late and today_record.status != 'late' %}
+                    <span class="badge bg-orange">Late</span>
+                {% endif %}
+                {% if today_half_day and today_record.status != 'half_day' %}
+                    <span class="badge bg-secondary">Half Day</span>
+                {% endif %}
+                <span class="badge bg-warning late-by-badge">
+                    Late by: {{ today_late_duration_str|default:"0 hours 0 minutes" }}
+                </span>
+            </p>
         </div>
 
-        <div class="col">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Time History</h5>
-                        <div class="d-flex align-items-center gap-3">
-                            <form method="get" id="dateRangeForm" class="date-filter-group">
-                                <div class="form-group">
-                                    <input type="text" name="start_date" id="start_date" class="form-control form-control-sm" 
-                                           value="{{ current_filters.start_date|default_if_none:'' }}" placeholder="YYYY-MM-DD">
-                                </div>
-                                <div class="form-group">
-                                    <input type="text" name="end_date" id="end_date" class="form-control form-control-sm" 
-                                           value="{{ current_filters.end_date|default_if_none:'' }}" placeholder="YYYY-MM-DD">
-                                </div>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-gradient-success">
+                        <div class="inner">
+                            <h3>{{ attendance_stats.present_days }}</h3>
+                            <p>Present Days</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-gradient-warning">
+                        <div class="inner">
+                            <h3>{{ attendance_stats.late_days }}</h3>
+                            <p>Late Days</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-gradient-secondary">
+                        <div class="inner">
+                            <h3>{{ attendance_stats.half_days }}</h3>
+                            <p>Half Days</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-user-clock"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-gradient-danger">
+                        <div class="inner">
+                            <h3>{{ attendance_stats.absent_days }}</h3>
+                            <p>Absent Days</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-user-times"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-gradient-primary">
+                        <div class="inner">
+                            <h3>{{ attendance_stats.attendance_percentage }}<sup style="font-size: 20px">%</sup></h3>
+                            <p>Attendance Percentage</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-pattern-1">
+                        <div class="inner">
+                            <h3>{{ total_available_leaves|floatformat:1 }}</h3>
+                            <p>Total Available Leaves</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-pattern-3">
+                        <div class="inner">
+                            <h3>{{ attendance_stats.todays_total_breaks }}</h3>
+                            <p>Today’s Total Breaks</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-user-minus"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-pattern-4">
+                        <div class="inner">
+                            <h3>{{ attendance_stats.total_breaks_in_month }}</h3>
+                            <p>Monthly Total Breaks</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-user-minus"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6 mb-4">
+                    <div class="small-box bg-gradient-info">
+                        <div class="inner">
+                            <h3>{{ attendance_stats.total_days }}</h3>
+                            <p>Total Working Days</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Time History</h5>
+                            <div class="d-flex align-items-center gap-3">
+                                <form method="get" id="dateRangeForm" class="date-filter-group">
+                                    <div class="form-group">
+                                        <input type="text" name="start_date" id="start_date" class="form-control form-control-sm" 
+                                            value="{{ current_filters.start_date|default_if_none:'' }}" placeholder="YYYY-MM-DD">
+                                    </div>
+                                    <div class="form-group">
+                                        <input type="text" name="end_date" id="end_date" class="form-control form-control-sm" 
+                                            value="{{ current_filters.end_date|default_if_none:'' }}" placeholder="YYYY-MM-DD">
+                                    </div>
+                                    {% if request.user.is_staff %}
+                                        <input type="hidden" name="user" value="{{ request.GET.user }}">
+                                        <input type="hidden" name="department" value="{{ request.GET.department }}">
+                                    {% endif %}
+                                </form>
                                 {% if request.user.is_staff %}
-                                    <input type="hidden" name="user" value="{{ request.GET.user }}">
-                                    <input type="hidden" name="department" value="{{ request.GET.department }}">
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        {% if request.GET.user %}User: {{ request.GET.user }}{% else %}All Users{% endif %}
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}">All Users</a></li>
+                                        {% for user in users %}
+                                        <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}user={{ user.id }}">{{ user.get_full_name }}</a></li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="btn-group ms-2">
+                                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        {% if request.GET.department %}Dept: {{ request.GET.department }}{% else %}All Departments{% endif %}
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}">All Departments</a></li>
+                                        {% for dept in departments %}
+                                        <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}department={{ dept.id }}">{{ dept.name }}</a></li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
                                 {% endif %}
-                            </form>
-                            {% if request.user.is_staff %}
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    {% if request.GET.user %}User: {{ request.GET.user }}{% else %}All Users{% endif %}
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}">All Users</a></li>
-                                    {% for user in users %}
-                                    <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}user={{ user.id }}">{{ user.get_full_name }}</a></li>
-                                    {% endfor %}
-                                </ul>
                             </div>
-                            <div class="btn-group ms-2">
-                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    {% if request.GET.department %}Dept: {{ request.GET.department }}{% else %}All Departments{% endif %}
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}">All Departments</a></li>
-                                    {% for dept in departments %}
-                                    <li><a class="dropdown-item" href="?{% if current_filters.start_date %}start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&{% endif %}department={{ dept.id }}">{{ dept.name }}</a></li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
-                </div>
-                <div class="card-body">
-                    <div class="tab-content" id="timesheetTabsContent">
-                        <div class="tab-pane fade show active" id="daily" role="tabpanel">
-                            <div class="table-responsive" id="timeHistoryTable">
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Type</th>
-                                            <th>Start Time</th>
-                                            <th>End Time</th>
-                                            <th>Duration</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for entry in detailed_time_entries %}
-                                        <tr>
-                                            <td>{{ entry.date|date:"M d, Y" }}</td>
-                                            <td>
-                                                {% if entry.type == 'clock_in' %}
-                                                    <span class="badge bg-primary">Clock In</span>
-                                                {% elif entry.type == 'clock_out' %}
-                                                    <span class="badge bg-secondary">Clock Out</span>
-                                                {% else %}
-                                                    <span class="badge bg-warning">Break</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ entry.start_time|time:"h:i:s A" }}</td>
-                                            <td>
-                                                {% if entry.end_time %}
-                                                    {{ entry.end_time|time:"h:i:s A" }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if entry.duration %}
-                                                    {{ entry.duration|duration_to_hours_minutes }}
-                                                {% else %}
-                                                    -
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <span class="badge 
-                                                    {% if entry.status == 'Clocked In' %}bg-success
-                                                    {% elif entry.status == 'Clocked Out' %}bg-secondary
-                                                    {% elif entry.status == 'Break Start' %}bg-warning
-                                                    {% elif entry.status == 'Break End' %}bg-warning
-                                                    {% else %}bg-info
-                                                    {% endif %}">
-                                                    {{ entry.status }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        {% empty %}
-                                        <tr>
-                                            <td colspan="6" class="text-center">No records found for the selected date range.</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                                <div class="pagination-container mt-3">
-                                    <nav>
-                                        <ul class="pagination mb-0" id="paginationContainer">
-                                            {% if detailed_time_entries.has_previous %}
-                                                <li class="page-item">
-                                                    <a class="page-link" href="?page={{ detailed_time_entries.previous_page_number }}" data-page="{{ detailed_time_entries.previous_page_number }}" aria-label="Previous">
-                                                        <span aria-hidden="true">«</span>
-                                                    </a>
-                                                </li>
-                                            {% else %}
-                                                <li class="page-item disabled">
-                                                    <span class="page-link">«</span>
-                                                </li>
-                                            {% endif %}
-                                            {% for num in detailed_time_entries.paginator.page_range %}
-                                                {% if detailed_time_entries.number == num %}
-                                                    <li class="page-item active">
-                                                        <span class="page-link">{{ num }}</span>
-                                                    </li>
-                                                {% elif num > detailed_time_entries.number|add:'-3' and num < detailed_time_entries.number|add:'3' %}
-                                                    <li class="page-item">
-                                                        <a class="page-link" href="?page={{ num }}" data-page="{{ num }}">{{ num }}</a>
-                                                    </li>
-                                                {% endif %}
+                    <div class="card-body">
+                        <div class="tab-content" id="timesheetTabsContent">
+                            <div class="tab-pane fade show active" id="daily" role="tabpanel">
+                                <div class="table-responsive" id="timeHistoryTable">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Type</th>
+                                                <th>Start Time</th>
+                                                <th>End Time</th>
+                                                <th>Duration</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for entry in detailed_time_entries %}
+                                            <tr>
+                                                <td>{{ entry.date|date:"M d, Y" }}</td>
+                                                <td>
+                                                    {% if entry.type == 'clock_in' %}
+                                                        <span class="badge bg-primary">Clock In</span>
+                                                    {% elif entry.type == 'clock_out' %}
+                                                        <span class="badge bg-secondary">Clock Out</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning">Break</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ entry.start_time|time:"h:i:s A" }}</td>
+                                                <td>
+                                                    {% if entry.end_time %}
+                                                        {{ entry.end_time|time:"h:i:s A" }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if entry.duration %}
+                                                        {{ entry.duration|duration_to_hours_minutes }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if entry.status == 'Clocked In' %}bg-success
+                                                        {% elif entry.status == 'Clocked Out' %}bg-secondary
+                                                        {% elif entry.status == 'Break Start' %}bg-warning
+                                                        {% elif entry.status == 'Break End' %}bg-warning
+                                                        {% else %}bg-info
+                                                        {% endif %}">
+                                                        {{ entry.status }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="6" class="text-center">No records found for the selected date range.</td>
+                                            </tr>
                                             {% endfor %}
-                                            {% if detailed_time_entries.has_next %}
-                                                <li class="page-item">
-                                                    <a class="page-link" href="?page={{ detailed_time_entries.next_page_number }}" data-page="{{ detailed_time_entries.next_page_number }}" aria-label="Next">
-                                                        <span aria-hidden="true">»</span>
-                                                    </a>
-                                                </li>
-                                            {% else %}
-                                                <li class="page-item disabled">
-                                                    <span class="page-link">»</span>
-                                                </li>
-                                            {% endif %}
-                                        </ul>
-                                    </nav>
+                                        </tbody>
+                                    </table>
+                                    <div class="pagination-container mt-3">
+                                        <nav>
+                                            <ul class="pagination mb-0" id="paginationContainer">
+                                                {% if detailed_time_entries.has_previous %}
+                                                    <li class="page-item">
+                                                        <a class="page-link" href="?page={{ detailed_time_entries.previous_page_number }}" data-page="{{ detailed_time_entries.previous_page_number }}" aria-label="Previous">
+                                                            <span aria-hidden="true">«</span>
+                                                        </a>
+                                                    </li>
+                                                {% else %}
+                                                    <li class="page-item disabled">
+                                                        <span class="page-link">«</span>
+                                                    </li>
+                                                {% endif %}
+                                                {% for num in detailed_time_entries.paginator.page_range %}
+                                                    {% if detailed_time_entries.number == num %}
+                                                        <li class="page-item active">
+                                                            <span class="page-link">{{ num }}</span>
+                                                        </li>
+                                                    {% elif num > detailed_time_entries.number|add:'-3' and num < detailed_time_entries.number|add:'3' %}
+                                                        <li class="page-item">
+                                                            <a class="page-link" href="?page={{ num }}" data-page="{{ num }}">{{ num }}</a>
+                                                        </li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                {% if detailed_time_entries.has_next %}
+                                                    <li class="page-item">
+                                                        <a class="page-link" href="?page={{ detailed_time_entries.next_page_number }}" data-page="{{ detailed_time_entries.next_page_number }}" aria-label="Next">
+                                                            <span aria-hidden="true">»</span>
+                                                        </a>
+                                                    </li>
+                                                {% else %}
+                                                    <li class="page-item disabled">
+                                                        <span class="page-link">»</span>
+                                                    </li>
+                                                {% endif %}
+                                            </ul>
+                                        </nav>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="tab-pane fade" id="weekly" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Week</th>
-                                            <th>Total Hours</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for week in weekly_view %}
-                                        <tr>
-                                            <td>Week of {{ week.week|date:"M d, Y" }}</td>
-                                            <td>{{ week.total_hours|duration_to_hours_minutes }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                            <div class="tab-pane fade" id="weekly" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Week</th>
+                                                <th>Total Hours</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for week in weekly_view %}
+                                            <tr>
+                                                <td>Week of {{ week.week|date:"M d, Y" }}</td>
+                                                <td>{{ week.total_hours|duration_to_hours_minutes }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-                        <div class="tab-pane fade" id="monthly" role="tabpanel">
-                            <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Month</th>
-                                            <th>Total Hours</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for month in monthly_view %}
-                                        <tr>
-                                            <td>{{ month.month|date:"F Y" }}</td>
-                                            <td>{{ month.total_hours|duration_to_hours_minutes }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                            <div class="tab-pane fade" id="monthly" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Month</th>
+                                                <th>Total Hours</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for month in monthly_view %}
+                                            <tr>
+                                                <td>{{ month.month|date:"F Y" }}</td>
+                                                <td>{{ month.total_hours|duration_to_hours_minutes }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 {% endblock content %}
 
 {% block custom_js %}

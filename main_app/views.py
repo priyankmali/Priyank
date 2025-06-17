@@ -1,9 +1,7 @@
 import json
-import pytz
-import requests
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse,HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
@@ -20,11 +18,10 @@ from datetime import datetime, time
 from dotenv import load_dotenv
 import os
 from django.urls import reverse
-from django.http import JsonResponse, HttpResponseRedirect
 from django.http import HttpResponseForbidden
 from django.db.models import Q
 from django.contrib.auth.models import User
-from main_app.notification_badge import mark_notification_read, send_notification
+from main_app.notification_badge import send_notification
 from .context_processors import unread_notification_count
 
 
@@ -204,9 +201,8 @@ def clock_in_out(request):
  
             # Determine status
             on_time_threshold = datetime.combine(today, time(9, 0))
-            late_threshold = datetime.combine(today, time(9, 15))
+            late_threshold = datetime.combine(today, time(9, 30))
             half_day_threshold = datetime.combine(today, time(13, 0))
-            after_3pm_threshold = datetime.combine(today, time(15, 0))
  
             earliest_clock_in =datetime.combine(today, time(8, 45)) if request.user.user_type == "3" else datetime.combine(today, time(8, 30))
  
@@ -217,9 +213,7 @@ def clock_in_out(request):
                 }, status=400)
  
             status = 'present'
-            if now > after_3pm_threshold:
-                status = 'present'
-            elif now > half_day_threshold:
+            if now > half_day_threshold:
                 status = 'half_day'
             elif now > late_threshold:
                 status = 'late'
@@ -227,12 +221,15 @@ def clock_in_out(request):
             # Create record only on successful validation
             department_id = request.POST.get('department')
             department = Department.objects.get(id=department_id) if department_id else None
- 
+            
+            employee_ =  Employee.objects.filter(admin=request.user).first() 
+            current_user = employee_ if employee_ else Manager.objects.filter(admin=request.user).first()
+
             new_record = AttendanceRecord.objects.create(
                 user=request.user,
                 date=today,
                 clock_in=now,
-                department=department,
+                department=current_user.department,
                 status=status,
                 ip_address=request.META.get('REMOTE_ADDR'),
                 notes=request.POST.get('notes', '')
@@ -310,6 +307,9 @@ def clock_in_out(request):
         }, status=400)
  
     return HttpResponseRedirect('employee_home')
+
+
+
 # @login_required
 # def clock_in_out(request):
 #     if request.method == 'POST':
@@ -438,9 +438,8 @@ def break_action(request):
         action_type = data.get('action', 'start_or_end')
         user_id = data.get('user_id', None)
 
-        # Determine the user to check (default to current user)
         target_user = request.user
-        if user_id and request.user.has_perm('your_app.can_manage_employees'):  # Replace with actual permission
+        if user_id and request.user.has_perm('your_app.can_manage_employees'): 
             try:
                 target_user = User.objects.get(id=user_id)
             except User.DoesNotExist:
@@ -448,7 +447,8 @@ def break_action(request):
 
         current_record = AttendanceRecord.objects.filter(
             user=target_user, 
-            clock_out__isnull=True
+            clock_out__isnull=True,
+            date = timezone.now().date()
         ).first()
         
         if not current_record:
@@ -542,6 +542,8 @@ def get_attendance(request):
  
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
+    
+    
 
 def showFirebaseJS(request):
     data = """
@@ -770,6 +772,7 @@ def all_employees_schedules(request):
     })
 
 
+
 @login_required
 def check_new_notification(request):
     if not request.user.is_authenticated:
@@ -800,7 +803,8 @@ def check_new_notification(request):
         response_data.update({
             'from_manager': context['employee_notification_from_manager_count'],
             'leave_status': context['employee_leave_approved_or_rejected_notification_count'],
-            'clockout': context['employee_clockout_request_to_manager_count']
+            'clockout': context['employee_clockout_request_to_manager_count'],
+            'asset' : context['employee_asset_request']
         })
     
     return JsonResponse(response_data)

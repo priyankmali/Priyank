@@ -1,0 +1,132 @@
+
+<!-- Enhanced Notification Dropdown -->
+<ul class="navbar-nav ml-auto">
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="notificationDropdown" role="button" 
+        data-toggle="dropdown" aria-expanded="false">
+            <i class="far fa-bell"></i>
+            {% if total_unread_notifications > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {{ total_unread_notifications }}
+                </span>
+            {% endif %}
+        </a>
+        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right p-0" 
+            aria-labelledby="notificationDropdown">
+            <div class="dropdown-header">
+                <i class="fas fa-bell mr-2"></i> Notifications
+            </div>
+            {% if request.user.user_type == '2' %}
+                <!-- Manager notifications -->
+                <a href="{% url 'manager_view_notification' %}?type=general" class="dropdown-item d-flex align-items-center py-2 notification-general">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">General</div>
+                        <span class="font-weight-bold count">{{ manager_general_count }} new notifications</span>
+                    </div>
+                </a>
+                <div class="dropdown-divider m-0"></div>
+                <a href="{% url 'manager_view_notification' %}?type=leave" class="dropdown-item d-flex align-items-center py-2 notification-leave">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Leave Requests</div>
+                        <span class="font-weight-bold count">{{ employee_leave_request_to_manager_count }} new notifications</span>
+                    </div>
+                </a>
+                <div class="dropdown-divider m-0"></div>
+                <a href="{% url 'manager_apply_leave' %}?type=leave" class="dropdown-item d-flex align-items-center py-2 manager-notification-leave">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">My Leave Requests</div>
+                        <span class="font-weight-bold count">{{ manager_leave_request_from_ceo_count }} new notifications</span>
+                    </div>
+                </a>
+                <div class="dropdown-divider m-0"></div>
+                <a href="{% url 'manager_asset_view_notification' %}?type=asset" class="dropdown-item d-flex align-items-center py-2 asset-notification">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Asset Requests</div>
+                        <span class="font-weight-bold count">{{ employee_asset_request_count }} new notifications</span>
+                    </div>
+                </a>
+                <div class="dropdown-divider m-0"></div>
+                <a href="{% url 'manager_view_notification' %}?type=clockout" class="dropdown-item d-flex align-items-center py-2 notification-clockout">
+                    <div class="me-3">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Clockout Requests</div>
+                        <span class="font-weight-bold count">{{ employee_clockout_request_to_manager_count }} new notifications</span>
+                    </div>
+                </a>
+            {% elif request.user.user_type == '1' %}
+                <!-- CEO notifications -->
+                <a href="{% url 'view_manager_leave' %}?type=leave" class="dropdown-item d-flex align-items-center py-2 notification-manager-leave">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Manager Leave Requests</div>
+                        <span class="font-weight-bold count">{{ ceo_notification_from_manager_leave_request }} new notifications</span>
+                    </div>
+                </a>
+                <div class="dropdown-divider m-0"></div>
+                <a href="{% url 'view_employee_leave' %}?type=leave" class="dropdown-item d-flex align-items-center py-2 notification-employee-leave">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Employee Leave Requests</div>
+                        <span class="font-weight-bold count">{{ ceo_notification_from_employee_leave_request }} new notifications</span>
+                    </div>
+                </a>
+            {% else %}
+                <!-- Employee notifications -->
+                <a href="{% url 'employee_view_notification' %}?type=general" class="dropdown-item d-flex align-items-center py-2 notification-from-manager">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">General</div>
+                        <span class="font-weight-bold count">{{ employee_notification_from_manager_count }} new notifications</span>
+                    </div>
+                </a>
+                <div class="dropdown-divider m-0"></div>
+                <a href="{% url 'employee_requests' %}?type=leave" class="dropdown-item d-flex align-items-center py-2 notification-leave-status">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Leave Requests</div>
+                        <span class="font-weight-bold count">{{ employee_leave_approved_or_rejected_notification_count }} new notifications</span>
+                    </div>
+                </a>
+                <div class="dropdown-divider m-0"></div>
+                <a href="{% url 'employee_requests' %}?type=asset" class="dropdown-item d-flex align-items-center py-2 asset-notification">
+                    <div class="me-3">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Asset Requests</div>
+                        <span class="font-weight-bold count">{{ employee_asset_request }} new notifications</span>
+                    </div>
+                </a>
+            {% endif %}
+            <div class="dropdown-divider m-0"></div>
+            <div class="dropdown-footer text-center p-2">
+                <a href="#" id="muteToggle" class="text-muted d-flex align-items-center justify-content-center">
+                    <i id="muteIcon" class="fas fa-volume-up mr-2"></i> 
+                    <span id="muteText">Mute Notifications</span>
+                </a>
+            </div>
+        </div>
+    </li>
+</ul>

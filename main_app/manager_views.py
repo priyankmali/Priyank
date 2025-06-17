@@ -4,34 +4,19 @@ from django.core.files.storage import FileSystemStorage
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404,redirect, render
 from django.urls import reverse
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Count,Q
 from django.db.models import Count,Q
 from main_app.notification_badge import send_notification
 from .forms import *
 from .models import *
-from asset_app.models import Notify_Manager,AssetsIssuance,Assets,LOCATION_CHOICES,AssetAssignmentHistory
+from asset_app.models import Notify_Manager,AssetsIssuance,Assets,LOCATION_CHOICES,AssetAssignmentHistory,AssetIssue,AssetCategory
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_POST
-from asset_app.models import AssetIssue
-from .models import CustomUser
-from django.utils.timezone import localtime
-from django.templatetags.static import static
-import requests
-from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from datetime import datetime, time, timedelta
-from django.core.paginator import Paginator
 from django.forms.models import model_to_dict
-from django.http import JsonResponse
-from datetime import datetime
 from django.template.loader import render_to_string
-from asset_app.models import AssetCategory
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.core.paginator import Paginator, EmptyPage
 from django.views.decorators.csrf import csrf_exempt
-from .models import AttendanceRecord, Employee, Holiday, LeaveReportEmployee
 from calendar import monthrange
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
@@ -449,20 +434,6 @@ def save_attendance(request):
         traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=400)
 
-
-# For displaying the update page
-# def manager_update_attendance(request):
-#     manager = get_object_or_404(Manager, admin=request.user)
-#     # employees = Employee.objects.filter(department__in=departments)
-#     departments = Department.objects.filter(division=manager.division)
-#     context = {
-#         'departments': departments,
-#         # 'employees': employees,
-#         'page_title': 'Update Attendance'
-#     }
-#     return render(request, 'manager_template/manager_update_attendance.html', context)
-
-# from datetime import datetime
 
 
 @login_required   
@@ -1269,7 +1240,7 @@ def get_available_assets(request):
         for category in bundle_categories:
             asset = Assets.objects.filter(
                 is_asset_issued=False,
-                asset_category__category=category.lower()
+                asset_category__category__icontains=category.lower()
             ).select_related('asset_category').first()
             if asset:
                 bundle_assets.append({
@@ -1280,6 +1251,7 @@ def get_available_assets(request):
                     'asset_brand': asset.asset_brand,
                     'status': "Available"
                 })
+        print(bundle_assets)
         
         return JsonResponse({'assets': assets_data,'bundle_assets': bundle_assets, 'success': True})
     except Exception as e:
@@ -1346,6 +1318,7 @@ def assign_assets(request):
                 asset=asset,
                 asset_location=location,
                 asset_assignee=employee.admin,
+                assigned_by = get_object_or_404(CustomUser,id=request.user.id)
             )
             asset.is_asset_issued = True
             asset.save()
@@ -2171,13 +2144,20 @@ def manager_asset_view_notification(request):
     all_resolved_recurring = AssetIssue.objects.filter(
         status='resolved',
     ).order_by('-resolved_date')[:5]
-    print(all_resolved_recurring)
 
     # Asset claim notifications pending approval
     pending_asset_notifications = Notify_Manager.objects.filter(
-        manager=request.user,
+        # manager=request.user,
         approved__isnull=True
     ).order_by('-timestamp')
+
+    # Get all unread notifications for manager
+    unread_notifications = Notification.objects.filter(
+        # user=request.user,
+        role="manager",
+        is_read=False,
+        notification_type = 'asset-notification'
+    ).values_list('leave_or_notification_id' , flat=True)
 
     ## Asset claim notification history 
     asset_notification_history = Notify_Manager.objects.filter(
@@ -2220,7 +2200,8 @@ def manager_asset_view_notification(request):
         'unread_asset_notification_count': unread_asset_notification_count,
         'unread_asset_request_count': pending_asset_notifications.count(),
         'unread_asset_issue_count': pending_asset_issues.count(),
-        'asset_history_claim_notication_obj' : asset_history_claim_notication_obj
+        'asset_history_claim_notication_obj' : asset_history_claim_notication_obj,
+        'unread_notifications' : list(unread_notifications)
     }
 
     return render(request, "manager_template/manager_asset_view_notification.html", context)
@@ -2240,20 +2221,36 @@ def approve_assest_request(request, notification_id):
                 AssetsIssuance.objects.create(
                     asset=asset,
                     asset_location=asset_location_,
-                    asset_assignee=employee
+                    asset_assignee=employee,
+                    assigned_by = request.user
                 )
             
                 my_asset = Assets.objects.get(id=asset.id)
-                my_asset.manager = request.user
+                # my_asset.manager = request.user
                 my_asset.is_asset_issued = True
                 my_asset.save()
                 notification.approved = True
                 notification.save()
                 messages.success(request, "Asset request approved successfully.")
-                notify = Notification.objects.filter(leave_or_notification_id=notification_id, user=request.user,role = "manager",notification_type = "notification").first()
-                if notify:
-                    notify.is_read = True
-                    notify.save()
+                    
+                # Update existing notifications for the employee to mark as read
+                Notification.objects.filter(
+                    notification_type__in = ['asset-notification'],
+                    leave_or_notification_id = notification.id,
+                    is_read = False 
+                ).update(is_read=True)
+                
+                # Send notification to employee
+                employee_user = notification.employee.id
+
+                Notification.objects.create(
+                    user=get_object_or_404(CustomUser , id=employee_user),
+                    message="Asset request approved.",
+                    notification_type="asset-notification",
+                    leave_or_notification_id=notification.id,
+                    role="employee"
+                )
+
             except:
                 messages.error(request,"This Asset is not Found in Inventry")
 
@@ -2262,7 +2259,9 @@ def approve_assest_request(request, notification_id):
 
     return redirect('manager_asset_view_notification')
 
-from django.db import transaction
+
+
+
 @login_required   
 def reject_assest_request(request, notification_id):
     notification = get_object_or_404(Notify_Manager, id=notification_id)
@@ -2270,10 +2269,24 @@ def reject_assest_request(request, notification_id):
         notification.approved = False
         notification.save()
         messages.success(request, "Asset request rejected successfully.")
-        notify = Notification.objects.filter(leave_or_notification_id=notification_id, user=request.user,role = "manager",notification_type = "notification").first()
-        if notify:
-            notify.is_read = True
-            notify.save()
+        
+        # Update existing notifications for the employee to mark as read
+        Notification.objects.filter(
+            notification_type__in = ['asset-notification'],
+            leave_or_notification_id = notification.id,
+            is_read = False 
+        ).update(is_read=True)
+        
+        # Send notification to employee
+        employee_user_id = notification.employee.id
+
+        Notification.objects.create(
+            user=get_object_or_404(CustomUser , id=employee_user_id),
+            message="Asset request rejected.",
+            notification_type="asset-notification",
+            leave_or_notification_id=notification.id,
+            role="employee"
+        )
         notification.save()
     else:
         messages.info(request, "This request was already approved or rejected.")
@@ -2312,19 +2325,34 @@ def approve_leave_request(request, leave_id):
                         return redirect('manager_view_notification')
 
                     # Update or create attendance record
-                    record, created = AttendanceRecord.objects.update_or_create(
-                        user=employee.admin,
-                        date=current_date,
-                        defaults={
-                            'status': 'half_day' if leave.leave_type == 'Half-Day' else 'leave',
-                            'department': employee.department,
-                            'clock_in': None,
-                            'clock_out': None,
-                            'total_worked': None,
-                            'regular_hours': None,
-                            'overtime_hours': None
-                        }
-                    )
+
+                    if leave.leave_type == 'Half-Day':
+                        # for half_day leave
+                        record, created = AttendanceRecord.objects.update_or_create(
+                            user = employee.admin , 
+                            date = current_date ,
+                            defaults = {
+                                'status' : 'half_day',
+                                'department' : employee.department,
+                                'notes': f"Approved half-day leave"
+                            }
+                        )
+                    else:
+                        # for full_day leaves
+                        record, created = AttendanceRecord.objects.update_or_create(
+                            user=employee.admin,
+                            date=current_date,
+                            defaults={
+                                'status': 'leave',
+                                'department': employee.department,
+                                'clock_in': None,
+                                'clock_out': None,
+                                'total_worked': None,
+                                'regular_hours': None,
+                                'overtime_hours': None
+                            }
+                        )
+
                     current_date += timedelta(days=1)
 
                 # Update leave status to Approved
@@ -2440,11 +2468,26 @@ def resolve_asset_issue(request,asset_issu_id):
         issue_asset.resolved_date = datetime.now()
         issue_asset.save()
 
-        if issue_asset.status == "resolved":
-            notify = Notification.objects.filter(leave_or_notification_id=asset_issu_id, role = "manager",notification_type = "asset issue").first()
-            if notify:
-                notify.is_read = True
-                notify.save()
+        if issue_asset.status in ["resolved" , 'in_progress']:
+            # Update existing notifications for the employee to mark as read
+            if issue_asset.status == 'resolved':
+                Notification.objects.filter(
+                    notification_type__in = ['asset-notification'],
+                    leave_or_notification_id = issue_asset.id,
+                    is_read = False 
+                ).update(is_read=True)
+            
+            # Send notification to employee
+            employee_user = issue_asset.reported_by
+
+            Notification.objects.create(
+                user=employee_user,
+                message=issue_asset.notes,
+                notification_type="asset-notification",
+                leave_or_notification_id=issue_asset.id,
+                role="employee"
+            
+            )
         messages.success(request,f"Asset Issue {issue_asset.status}!!")
     
     return redirect('manager_asset_view_notification')

@@ -18,7 +18,7 @@ class AssetCategoryForm(forms.ModelForm):
 class AssetForm(forms.ModelForm):
     class Meta:
         model = Assets
-        fields = ['asset_category', 'asset_name', 'asset_brand', 'asset_condition','asset_image', 'os_version', 'ip_address', 'processor', 'ram', 'storage']
+        fields = ['asset_category', 'quantity' , 'asset_name', 'asset_brand', 'asset_condition','asset_image', 'os_version', 'ip_address', 'processor', 'ram', 'storage']
     
     def clean(self):
         cleaned_data = super().clean()

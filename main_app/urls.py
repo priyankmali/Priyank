@@ -193,4 +193,6 @@ urlpatterns = [
 
      path('check-notifications/', views.check_new_notification, name='check_new_notification'),
     
+
+    
 ]

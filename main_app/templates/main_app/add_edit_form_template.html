@@ -20,7 +20,6 @@
             margin-top: 0.25rem;
         }
         
-        
         .alert {
             padding: 0.75rem 1.25rem;
             margin-bottom: 1rem;
@@ -226,7 +225,7 @@
             height: 50px;
             border: 4px solid rgba(255, 255, 255, 0.2);
             border-radius: 50%;
-            border-top: 4for solid white;
+            border-top: 4px solid white;
             animation: spin 1s linear infinite;
             z-index: 5;
             display: none;
@@ -258,7 +257,7 @@
         input[type="date"]:focus {
             outline: none;
             border-color: #3897f0;
-            box-shadow: 0 0 5px rgba(56, 151 rins, 240, 0.3);
+            box-shadow: 0 0 5px rgba(56, 151, 240, 0.3);
         }
 
         /* Ensure the calendar icon is visible and clickable */
@@ -294,6 +293,102 @@
             color: #343a40;
         }
 
+        /* Add Confirmation Popup Styles */
+        .confirmation-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1099;
+        }
+
+        .confirmation-overlay.show {
+            display: block;
+        }
+
+        .confirmation-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1100;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .confirmation-popup.show {
+            display: block;
+        }
+
+        .confirmation-message {
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .confirmation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .confirmation-btn {
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-ok {
+            background-color: #3897f0;
+            color: white;
+        }
+
+        .btn-ok:hover {
+            background-color: #2a7bc2;
+        }
+
+        .btn-cancel-btn {
+            background-color: #e6f0fa;
+            color: #3897f0;
+        }
+
+        .btn-cancel-btn:hover {
+            background-color: #d1e0f5;
+        }
+
+        /* Add Cancel Button Styles */
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .btn-cancel {
+            background-color: #e6f0fa;
+            color: #3897f0;
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-cancel:hover {
+            background-color: #d1e0f5;
+        }
+
         /* Responsive Adjustments */
         @media (max-width: 768px) {
             .profile-pic-container {
@@ -305,12 +400,20 @@
                 margin: 1rem;
                 max-height: 85vh;
             }
+
+            .confirmation-popup {
+                padding: 1rem;
+                max-width: 300px;
+            }
+
+            .confirmation-btn {
+                padding: 0.4rem 1.2rem;
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
 <body>
-  
-
     <section class="content">
         <div class="container-fluid">
             <form id="profile-form" method="POST" enctype="multipart/form-data">
@@ -359,8 +462,6 @@
                                                 <img src="{{ user_object.profile_pic }}" class="user-avatar" alt="User Avatar">
                                             {% else %}
                                                 <img src="{% static 'dist/img/avatar-placeholder.jpeg' %}" class="user-avatar" alt="User Avatar">
-
-
                                             {% endif %}
                                             <span class="username">{{ user_object.get_full_name }}</span>
                                         {% elif page_title != "Add Employee" and page_title != 'Add Manager' %}
@@ -458,7 +559,7 @@
                             </div>
                         </div>
 
-                        <!-- Submit Button -->
+                        <!-- Submit and Cancel Buttons -->
                         <div class="card-footer">
                             <button type="button" class="btn btn-primary btn-block" onclick="confirmSubmit()">
                                 {{ button_text|default:"Submit" }}
@@ -467,6 +568,16 @@
                     </div>
                 </div>
             </form>
+
+            <!-- Add Confirmation Popup -->
+            <div id="confirmationOverlay" class="confirmation-overlay"></div>
+            <div id="confirmationPopup" class="confirmation-popup">
+                <div class="confirmation-message" id="confirmationMessage"></div>
+                <div class="confirmation-buttons">
+                    <button class="confirmation-btn btn-ok" id="confirmYes">OK</button>
+                    <button class="confirmation-btn btn-cancel-btn" id="confirmNo">Cancel</button>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -485,10 +596,27 @@
         const dateOfJoiningInput = document.getElementById("id_date_of_joining");
         const passwordToggle = document.getElementById('passwordToggle');
         const passwordField = document.getElementById('id_password');
+        // Add Confirmation Popup DOM
+        const confirmationOverlay = document.getElementById('confirmationOverlay');
+        const confirmationPopup = document.getElementById('confirmationPopup');
+        const confirmationMessage = document.getElementById('confirmationMessage');
+        const confirmYes = document.getElementById('confirmYes');
+        const confirmNo = document.getElementById('confirmNo');
+        const profileForm = document.getElementById('profile-form');
+        const cancelBtn = document.getElementById('cancelBtn');
 
         // Debug: Log DOM elements
         console.log('Password toggle element:', passwordToggle);
         console.log('Password field element:', passwordField);
+
+        // Prevent Unintended Form Submission
+        profileForm.addEventListener('submit', function(e) {
+            console.log('Form submission attempted at:', new Date().toISOString());
+            if (!profileForm.dataset.submitting) {
+                e.preventDefault();
+                console.log('Form submission prevented');
+            }
+        });
 
         // Open Modal Function
         function openModal(src) {
@@ -511,6 +639,7 @@
         
         // Close Modal Function
         function closeModal() {
+            console.log('Modal closed at:', new Date().toISOString());
             // Hide modal with animation
             profileModal.classList.remove('show');
             
@@ -525,31 +654,69 @@
             enlargedPhoto.style.display = 'block';
         }
         
+        // Show Error Function
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-error';
+            errorDiv.textContent = message;
+            profileModal.querySelector('.modal-container').prepend(errorDiv);
+            setTimeout(() => errorDiv.remove(), 3000);
+        }
+
         // Download Image Function
-        function downloadImage() {
-            if (!enlargedPhoto.src) return;
-            
-            const link = document.createElement('a');
-            link.href = enlargedPhoto.src;
-            link.download = 'profile-picture-' + new Date().getTime() + '.jpg';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        async function downloadImage() {
+            if (!enlargedPhoto.src) {
+                showError('No image available to download.');
+                return;
+            }
+            try {
+                const response = await fetch(enlargedPhoto.src, { mode: 'cors' });
+                if (!response.ok) throw new Error('Failed to fetch image');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'profile-picture-' + new Date().getTime() + '.jpg';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Download error:', error);
+                showError('Failed to download image. Please try again.');
+            }
         }
         
         // Share Image Function
-        function shareImage() {
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Profile Picture',
-                    text: 'Check out this profile picture',
-                    url: enlargedPhoto.src
-                }).catch(err => {
-                    console.error('Error sharing:', err);
-                });
-            } else {
-                // Fallback for browsers that don't support Web Share API
-                prompt('Copy this link to share:', enlargedPhoto.src);
+        async function shareImage() {
+            if (!enlargedPhoto.src) {
+                showError('No image available to share.');
+                return;
+            }
+            try {
+                if (navigator.share && navigator.canShare) {
+                    const response = await fetch(enlargedPhoto.src, { mode: 'cors' });
+                    if (!response.ok) throw new Error('Failed to fetch image');
+                    const blob = await response.blob();
+                    const file = new File([blob], 'profile-picture.jpg', { type: blob.type });
+                    const shareData = {
+                        title: 'Profile Picture',
+                        text: 'Check out this profile picture',
+                        files: [file]
+                    };
+                    if (navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                    } else {
+                        throw new Error('Sharing files not supported');
+                    }
+                } else {
+                    await navigator.clipboard.writeText(enlargedPhoto.src);
+                    showError('Share API not supported. Image URL copied to clipboard.');
+                }
+            } catch (error) {
+                console.error('Share error:', error);
+                showError('Failed to share image. Image URL copied to clipboard.');
+                await navigator.clipboard.writeText(enlargedPhoto.src);
             }
         }
         
@@ -563,7 +730,7 @@
             if (dateOfJoiningInput) {
                 dateOfJoiningInput.addEventListener('click', (e) => {
                     e.preventDefault();
-                    dateOfJoiningInput.showPicker(); // Programmatically open the date picker
+                    dateOfJoiningInput.showPicker();
                 });
 
                 // Ensure the date picker opens on focus as well
@@ -603,6 +770,35 @@
             }
         }
         
+        // Confirmation Popup Functionality
+        function showConfirmationPopup(message) {
+            confirmationMessage.textContent = message;
+            confirmationOverlay.classList.add('show');
+            confirmationPopup.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideConfirmationPopup() {
+            confirmationOverlay.classList.remove('show');
+            confirmationPopup.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // Form Submission Confirmation
+        function confirmSubmit() {
+            let message = "Are you sure you want to submit this form?";
+            
+            {% if page_title == "Add Employee" %}
+                message = "Are you sure you want to add this employee?";
+            {% elif page_title == "Add Manager" %}
+                message = "Are you sure you want to add this manager?";
+            {% elif page_title == "Edit Employee" or page_title == "Edit Manager" or page_title == "View/Update Profile" %}
+                message = "Are you sure you want to update this profile?";
+            {% endif %}
+            
+            showConfirmationPopup(message);
+        }
+
         // Event Listeners
         function initEventListeners() {
             // Profile picture click
@@ -633,6 +829,43 @@
                 spinner.style.display = 'none';
                 enlargedPhoto.src = "{% static 'dist/img/avatar-placeholder.jpeg' %}";
                 enlargedPhoto.style.display = 'block';
+                showError('Failed to load image.');
+            });
+
+            // Confirmation Popup Listeners
+            if (confirmYes) {
+                confirmYes.addEventListener('click', function() {
+                    profileForm.dataset.submitting = 'true';
+                    hideConfirmationPopup();
+                    profileForm.submit();
+                });
+            }
+
+            if (confirmNo) {
+                confirmNo.addEventListener('click', hideConfirmationPopup);
+            }
+
+            if (confirmationOverlay) {
+                confirmationOverlay.addEventListener('click', function(e) {
+                    if (e.target === confirmationOverlay) {
+                        hideConfirmationPopup();
+                    }
+                });
+            }
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Cancel button clicked at:', new Date().toISOString());
+                    profileForm.reset();
+                    hideConfirmationPopup();
+                });
+            }
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && confirmationPopup.classList.contains('show')) {
+                    hideConfirmationPopup();
+                }
             });
 
             // Initialize date picker trigger
@@ -640,23 +873,6 @@
 
             // Initialize password toggle
             setupPasswordToggle();
-        }
-        
-        // Form Submission Confirmation
-        function confirmSubmit() {
-            let message = "Are you sure you want to submit this form?";
-            
-            {% if page_title == "Add Employee" %}
-                message = "Are you sure you want to add this employee?";
-            {% elif page_title == "Add Manager" %}
-                message = "Are you sure you want to add this manager?";
-            {% elif page_title == "Edit Employee" or page_title == "Edit Manager" or page_title == "View/Update Profile" %}
-                message = "Are you sure you want to update this profile?";
-            {% endif %}
-            
-            if (confirm(message)) {
-                document.getElementById("profile-form").submit();
-            }
         }
         
         // Initialize when DOM is loaded

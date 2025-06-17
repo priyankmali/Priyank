@@ -22,6 +22,7 @@ from django.core.paginator import Paginator
 from django.db.models import ProtectedError
 from django.template.loader import render_to_string
 from django.db import IntegrityError
+from django import forms
 
 LOCATION_CHOICES = (
     ("Main Room" , "Main Room"),
@@ -111,8 +112,6 @@ class AssetsDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         asset = self.object
 
-        print(f"Asset ID: {asset.id}")
-        
         current_issuance = AssetsIssuance.objects.filter(
             asset=asset,
         ).select_related('asset_assignee').first()
@@ -263,15 +262,35 @@ class AssetsCreateView(LoginRequiredMixin, CreateView):
     template_name = 'asset_app/assets_form.html'
     success_url = reverse_lazy('asset_app:assets-list')
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Add quantity field to the form
+        form.fields['quantity'] = forms.IntegerField(
+            min_value=1,
+            initial=1,
+            required=True,
+            help_text="Number of identical assets to create"
+        )
+        return form
+
     def form_valid(self, form):
+        # Get quantity from form data
+        quantity = form.cleaned_data.pop('quantity', 1)
+
         asset = form.save(commit=False)
 
         # if user is type 2 (Manager)
         if self.request.user.user_type in ["1","2"]:
             asset.manager = self.request.user
 
-        asset.save()
-        messages.success(self.request, "Created Successfully!!")
+        # Save with quantity
+        if quantity == 1:
+            asset.save()
+            messages.success(self.request, "Asset created successfully!")
+        else:
+            created_assets = asset.save(quantity=quantity)
+            messages.success(self.request, f"Successfully created {quantity} assets!")
+
         return redirect(self.success_url)
 
     def get_context_data(self, **kwargs):
@@ -350,7 +369,7 @@ class MyAssetView(LoginRequiredMixin, ListView):
         
         elif user.user_type == '2':
             return AssetsIssuance.objects.filter(
-                asset__manager=user
+                assigned_by=user
             ).select_related('asset', 'asset_assignee').order_by('-date_issued')
         
         else:
@@ -413,7 +432,7 @@ class MyAssetView(LoginRequiredMixin, ListView):
                 )
                 new_asset.save()
                 messages.success(request, "Issue Reported Successfully")
-                send_notification(request.user, "Issue Reported Successfully","asset issue",new_asset.id,"manager")
+                send_notification(asset.manager, "Issue Reported Successfully","asset-notification",new_asset.id,"manager")
                 return redirect('asset_app:my-assets')
                 
             else:
@@ -436,6 +455,32 @@ class AssetNotAssignListView(LoginRequiredMixin, View):
         user = request.user
         not_assign_assets = Assets.objects.filter(is_asset_issued=False)
 
+        # get all categories:
+        categories = AssetCategory.objects.all()
+
+        # search functionality
+        search_ = request.GET.get('search')
+        if search_:
+            not_assign_assets = not_assign_assets.filter(
+                Q(asset_name__icontains=search_) |
+                Q(asset_serial_number__icontains=search_) |
+                Q(asset_brand__icontains=search_) |
+                Q(asset_category__category__icontains=search_)
+            )
+
+        # sorting
+        sort_by = request.GET.get('sort')
+        if sort_by:
+            not_assign_assets = not_assign_assets.order_by(sort_by)
+        else:
+            # Default sorting
+            not_assign_assets = not_assign_assets.order_by('-asset_added_date')
+
+        # Category filter
+        category_id = request.GET.get('category')
+        if category_id:
+            not_assign_assets = not_assign_assets.filter(asset_category_id=category_id)
+
         # pagination
         paginator = Paginator(not_assign_assets, self.paginate_by)
         page_number = request.GET.get('page')
@@ -445,6 +490,7 @@ class AssetNotAssignListView(LoginRequiredMixin, View):
             return render(request, self.template_name, {
                 'assets': page_obj,
                 'page_obj': page_obj,
+                'categories': categories,
                 'page_title': 'Not Assigned Asset List',
             })
         else:
@@ -457,6 +503,7 @@ class AssetNotAssignListView(LoginRequiredMixin, View):
             context = {
                 'assets': page_obj,
                 'page_obj': page_obj,
+                'categories': categories,
                 'pending_requests': list(pending_requests),
                 'page_title': 'Not Assigned Asset List',
             }
@@ -495,23 +542,7 @@ class AssetClaimView(LoginRequiredMixin, View):
         
          # employee view
         else:
-            template_name = 'asset_app/asset_claim.html'
-            unclaimed_assets = Assets.objects.filter(is_asset_issued=False)
-            claimed_assets = AssetsIssuance.objects.filter(asset_assignee=request.user)   
-           
-            pending_requests = Notify_Manager.objects.filter(
-                employee=user,
-                asset__in=unclaimed_assets,
-                manager__isnull=False,
-                approved__isnull=True
-            ).values_list('asset_id', flat=True)
-
-            return render(request, template_name, {
-                'unclaimed_assets': unclaimed_assets,
-                'claimed_assets': claimed_assets,
-                'pending_requests': list(pending_requests),
-                'page_title': 'Claim Asset',
-            })
+            return redirect(reverse('asset_app:not-assign-asset-list'))
         
 
     def post(self, request, *args, **kwargs):
@@ -527,7 +558,7 @@ class AssetClaimView(LoginRequiredMixin, View):
         try:
             manager_message = request.POST.get('message', 'Requesting asset approval.')
             manager = asset.manager
-            print(">>>>>>>>>>>>>",manager.id,user.id,asset,manager_message)
+
             new_req = Notify_Manager.objects.create(
                 manager=manager,
                 employee=user,
@@ -536,31 +567,8 @@ class AssetClaimView(LoginRequiredMixin, View):
                 approved = None
             )
             new_req.save()
-            if hasattr(manager, 'fcm_token') and manager.fcm_token:
-                body = {
-                    'notification': {
-                        'title': "KoliInfoTech - Asset Request",
-                        'body': manager_message,
-                        'click_action': reverse('manager_asset_view_notification'),
-                        'icon': static('dist/img/AdminLTELogo.png')
-                    },
-                    'to': manager.fcm_token
-                }
 
-                headers = {
-                    'Authorization': 'key=AAAA3Bm8j_M:APA91bElZlOLetwV696SoEtgzpJr2qbxBfxVBfDWFiopBWzfCfzQp2nRyC7_A2mlukZEHV4g1AmyC6P_HonvSkY2YyliKt5tT3fe_1lrKod2Daigzhb2xnYQMxUWjCAIQcUexAMPZePB', 
-                    'Content-Type': 'application/json'
-                }
-
-                response = requests.post(
-                    "https://fcm.googleapis.com/fcm/send",
-                    data=json.dumps(body),
-                    headers=headers
-                )
-
-                if response.status_code != 200:
-                    print(f"FCM error: {response.content}")
-            send_notification(manager, manager_message,"notification",new_req.id,"manager")
+            send_notification(get_object_or_404(CustomUser , id=new_req.manager.id), manager_message,"asset-notification",new_req.id,"manager")
             messages.success(request, "Your asset request has been sent for approval.")
 
         except Exception as e:

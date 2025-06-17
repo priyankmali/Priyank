@@ -61,28 +61,93 @@ class Assets(models.Model):
     storage = models.CharField(max_length=50, blank=True, null=True)
     
     barcode = models.ImageField(upload_to='barcodes/', blank=True, null=True)
+    quantity = models.PositiveIntegerField(default=1)
 
 
     def save(self, *args, **kwargs):
-        if not self.pk:
-            last_asset = Assets.objects.filter(asset_category__category=self.asset_category.category).order_by("-asset_added_date").first()
-            if last_asset:
-                last_numeric_number = int(last_asset.asset_serial_number[len(last_asset.PREFIX)+len(last_asset.asset_category.category[:4]):])
-                new_numeric_value = last_numeric_number + 1
-                new_serial_number = f"{self.PREFIX}{last_asset.asset_category.category[:4].upper()}{str(new_numeric_value).zfill(4)}"
-                print(new_serial_number)
-            else:
-                new_serial_number = f"{self.PREFIX}{self.asset_category.category[:4].upper()}0001"
+        # Check if this is a new asset (not updating existing one)
+        is_new = not self.pk
+        
+        if is_new:
+            quantity = kwargs.pop('quantity', 1)
             
-            self.asset_serial_number = new_serial_number
+            # If quantity is 1, just save normally
+            if quantity == 1:
+                self._save_single_asset(*args, **kwargs)
+            else:
+                # Create multiple assets
+                self._save_multiple_assets(quantity, *args, **kwargs)
+        else:
+            # For existing assets, save normally
+            if not self.barcode:
+                qrcode_file = generate_qrcode(self.id)
+                self.barcode.save(qrcode_file.name, qrcode_file, save=False)
+                
             super().save(*args, **kwargs)
+
+        return self
+
+    
+    def _save_single_asset(self, *args , **kwargs):
+        """Save a single asset with generated serial number"""
+        last_asset = Assets.objects.filter(
+            asset_category__category=self.asset_category.category
+        ).order_by("-asset_added_date").first()
+        
+        if last_asset:
+            last_numeric_number = int(last_asset.asset_serial_number[len(last_asset.PREFIX)+len(last_asset.asset_category.category[:4]):])
+            new_numeric_value = last_numeric_number + 1
+            new_serial_number = f"{self.PREFIX}{last_asset.asset_category.category[:4].upper()}{str(new_numeric_value).zfill(4)}"
+        else:
+            new_serial_number = f"{self.PREFIX}{self.asset_category.category[:4].upper()}0001"
+        
+        self.asset_serial_number = new_serial_number
+        super().save(*args, **kwargs)
 
         if not self.barcode:
             qrcode_file = generate_qrcode(self.id)
             self.barcode.save(qrcode_file.name, qrcode_file, save=False)
+            super().save(*args, **kwargs)
 
+    def _save_multiple_assets(self, quantity , *args , **kwargs):
+        """Save multiple assets with sequential serial numbers"""
+        last_asset = Assets.objects.filter(
+            asset_category__category=self.asset_category.category
+        ).order_by("-asset_added_date").first()
         
-        super().save(*args, **kwargs)
+        if last_asset:
+            last_numeric_number = int(last_asset.asset_serial_number[len(last_asset.PREFIX)+len(last_asset.asset_category.category[:4]):])
+            starting_number = last_numeric_number + 1
+        else:
+            starting_number = 1
+
+        created_assets = []
+
+        # Create each asset
+        for i in range(quantity):
+            new_numeric_value = starting_number + i
+            new_serial_number = f"{self.PREFIX}{self.asset_category.category[:4].upper()}{str(new_numeric_value).zfill(4)}"
+            
+            # Create a new asset with the same properties but different serial number
+            asset = Assets(
+                asset_category=self.asset_category,
+                asset_name=self.asset_name,
+                asset_brand=self.asset_brand,
+                asset_image=self.asset_image,
+                manager=self.manager,
+                asset_condition=self.asset_condition,
+                os_version=self.os_version,
+                ip_address=self.ip_address,
+                processor=self.processor,
+                ram=self.ram,
+                storage=self.storage,
+                asset_serial_number=new_serial_number
+            )
+            
+            asset.save()
+            created_assets.append(asset)
+
+        return created_assets
 
     @property
     def status(self):
@@ -110,6 +175,7 @@ class AssetsIssuance(models.Model):
     asset_location = models.CharField(max_length=100, choices=LOCATION_CHOICES)
     date_issued = models.DateTimeField(default=timezone.now)
     asset_assignee = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE)
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL , on_delete=models.CASCADE , related_name='approved_assignments', verbose_name='Approved by')
 
     def __str__(self):
         return f"{self.asset.asset_name} issued to {self.asset_assignee}"

@@ -132,6 +132,64 @@
         font-size: 14px;
         margin-bottom: 15px;
     }
+    /* Popup styles */
+    .popup-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+    }
+    .popup {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+    }
+    .popup h4 {
+        margin: 0 0 15px;
+        color: #1a365d;
+        font-size: 18px;
+    }
+    .popup p {
+        margin: 0 0 20px;
+        color: #4b5563;
+        font-size: 14px;
+    }
+    .popup-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+    .popup-ok {
+        background-color: #4f46e5;
+        color: white;
+        margin-right: 10px;
+    }
+    .popup-ok:hover {
+        background-color: #4338ca;
+    }
+    .popup-cancel {
+        background-color: #6b7280;
+        color: white;
+    }
+    .popup-cancel:hover {
+        background-color: #5f6673;
+    }
+    .invalid-input {
+        border-color: #dc2626 !important;
+    }
 </style>
 {% endblock %}
 
@@ -238,6 +296,18 @@
     </div>
 </div>
 
+<!-- Popup for justification confirmation -->
+<div id="justification-popup" class="popup-overlay">
+    <div class="popup">
+        <h4>Less Than 8 Hours Scheduled</h4>
+        <p>Please provide justification for spending less than 8 hours.</p>
+        <div>
+            <button id="popup-ok-btn" class="popup-btn popup-ok">OK</button>
+            <button id="popup-cancel-btn" class="popup-btn popup-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <form id="schedule-form" method="post" action="{% url 'daily_schedule' %}">
     {% csrf_token %}
     <input type="hidden" name="task_description" id="task-description-input">
@@ -255,10 +325,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeSummary = document.getElementById('time-summary');
     const projectInput = document.getElementById('project-input');
     const justificationInput = document.getElementById('justification-input');
+    const popup = document.getElementById('justification-popup');
+    const popupOkBtn = document.getElementById('popup-ok-btn');
+    const popupCancelBtn = document.getElementById('popup-cancel-btn');
     let totalMinutes = 0;
+    let isJustificationRequired = false;
 
-    // Initially hide justification box
+    // Initially hide justification box and popup
     justificationBox.style.display = 'none';
+    popup.style.display = 'none';
 
     // Setup time input with dropdown
     function setupTimeInput(input) {
@@ -332,14 +407,14 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSummary.textContent = `Total scheduled time: ${hours}h ${minutes}m`;
         document.getElementById('total-time-display').textContent = (totalMinutes / 60).toFixed(2);
         
-        // Show justification box only if total time is less than 8 hours (480 minutes)
-        if (totalMinutes < 480 && totalMinutes > 0) {
+        // Update justification requirement
+        isJustificationRequired = totalMinutes < 480 && totalMinutes > 0;
+        if (isJustificationRequired) {
             timeSummary.innerHTML += ' <span class="error">(8 hours required)</span>';
-            justificationBox.style.display = 'block';
         } else {
             timeSummary.innerHTML = timeSummary.textContent;
             justificationBox.style.display = 'none';
-            justificationInput.value = ''; // Clear justification input when not needed
+            justificationInput.value = '';
         }
     }
 
@@ -428,14 +503,45 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('form-project-input').value = projectInput.value.trim();
             document.getElementById('form-justification-input').value = justificationInput.value.trim();
 
-            // Require justification only if total time is less than 8 hours and non-zero
-            if (totalMinutes < 480 && totalMinutes > 0 && !justificationInput.value.trim()) {
-                alert('Please provide justification for scheduling less than 8 hours');
+            // Show popup if total time is less than 8 hours and non-zero
+            if (isJustificationRequired && justificationBox.style.display !== 'block') {
+                popup.style.display = 'flex';
                 return;
             }
 
-            // Submit the form
+            // Validate justification if required
+            if (isJustificationRequired && justificationBox.style.display === 'block') {
+                if (!justificationInput.value.trim()) {
+                    justificationInput.classList.add('invalid-input');
+                    alert('Please provide justification for scheduling less than 8 hours');
+                    justificationInput.focus();
+                    return;
+                }
+                justificationInput.classList.remove('invalid-input');
+            }
+
+            // Submit form
             document.getElementById('schedule-form').submit();
+        }
+    });
+
+    // Popup OK button - show justification box
+    popupOkBtn.addEventListener('click', () => {
+        popup.style.display = 'none';
+        justificationBox.style.display = 'block';
+        justificationBox.scrollIntoView({ behavior: 'smooth' });
+        justificationInput.focus();
+    });
+
+    // Popup Cancel button - hide popup
+    popupCancelBtn.addEventListener('click', () => {
+        popup.style.display = 'none';
+    });
+
+    // Remove automatic submission on justification input
+    justificationInput.addEventListener('input', () => {
+        if (justificationInput.value.trim()) {
+            justificationInput.classList.remove('invalid-input');
         }
     });
 

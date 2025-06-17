@@ -1,4 +1,4 @@
-{% extends 'main_app/base.html' %}
+  {% extends 'main_app/base.html' %}
 {% load static %}
 
 {% block page_title %}{{ page_title }}{% endblock %}
@@ -105,7 +105,7 @@
           const deptId = $(this).val();
           
           if (deptId && deptId !== 'all') {
-              // Enable both selectors
+              // Enable both selectors initially
               $('#employee').removeClass('disabled-select').prop('disabled', false);
               $('#manager').removeClass('disabled-select').prop('disabled', false);
               
@@ -134,16 +134,44 @@
                           // Department with only employees (like Python)
                           $('#employee-group').show();
                           $('#manager-group').hide();
-                          $('#manager').val(null).trigger('change');
+                          // Fully reset the manager dropdown
+                          $('#manager').select2('destroy');
+                          $('#manager').empty().append('<option value="">-- Select --</option>');
+                          $('#manager').val(null);
+                          $('#manager').select2({
+                              placeholder: "-- Select Employee(s) --",
+                              allowClear: true
+                          });
                       } else if (hasManagers && !hasEmployees) {
                           // Department with only managers (like HR)
                           $('#employee-group').hide();
                           $('#manager-group').show();
-                          $('#employee').val(null).trigger('change');
+                          // Fully reset the employee dropdown
+                          $('#employee').select2('destroy');
+                          $('#employee').empty().append('<option value="">-- Select --</option>');
+                          $('#employee').val(null);
+                          $('#employee').select2({
+                              placeholder: "-- Select Employee(s) --",
+                              allowClear: true
+                          });
                       } else {
                           // Department with both or neither
-                          $('#employee-group').show();
-                          $('#manager-group').show();
+                          // For departments with employees (including mixed), hide manager dropdown
+                          if (hasEmployees) {
+                              $('#employee-group').show();
+                              $('#manager-group').hide();
+                              $('#manager').select2('destroy');
+                              $('#manager').empty().append('<option value="">-- Select --</option>');
+                              $('#manager').val(null);
+                              $('#manager').select2({
+                                  placeholder: "-- Select Employee(s) --",
+                                  allowClear: true
+                              });
+                          } else {
+                              // Department with no employees (but possibly managers, though unlikely)
+                              $('#employee-group').hide();
+                              $('#manager-group').show();
+                          }
                       }
   
                       // Clear and populate employees if visible
@@ -190,9 +218,23 @@
               // No department selected - clear both and enable
               $('#employee-group').show();
               $('#manager-group').show();
-              $('#employee, #manager').empty().append('<option value="">-- Select --</option>');
+              $('#employee').empty().append('<option value="">-- Select --</option>');
+              $('#manager').empty().append('<option value="">-- Select --</option>');
               $('#employee').removeClass('disabled-select').prop('disabled', false);
               $('#manager').removeClass('disabled-select').prop('disabled', false);
+              // Fully reset both dropdowns
+              $('#employee').select2('destroy');
+              $('#employee').val(null);
+              $('#employee').select2({
+                  placeholder: "-- Select Employee(s) --",
+                  allowClear: true
+              });
+              $('#manager').select2('destroy');
+              $('#manager').val(null);
+              $('#manager').select2({
+                  placeholder: "-- Select Employee(s) --",
+                  allowClear: true
+              });
           }
       });
   

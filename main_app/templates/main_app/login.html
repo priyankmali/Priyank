@@ -1,36 +1,183 @@
 {% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Koli-InfoTech | Log in</title>
+    <title>KOLIInfotech | Secure Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Favicon -->
+    <link rel="icon" href="{% static 'dist/img/koli-logo.svg' %}" type="image/svg+xml">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{% static 'plugins/fontawesome-free/css/all.min.css' %}">
-    <!-- Ionicons -->
-    <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
-    <!-- icheck bootstrap -->
-    <link rel="stylesheet" href="{% static 'plugins/icheck-bootstrap/icheck-bootstrap.min.css' %}">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Theme style -->
     <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
-    <!-- Google Font: Source Sans Pro -->
-    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
-    <!-- Google Recaptcha -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4895ef;
+            --koli-color: #4361ee;
+            --infotech-color: #2a9d8f;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .login-container {
+            width: 400px;
+            max-width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        .brand-logo {
+            height: auto;
+            width: 180px;
+            margin: 1.5rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+        }
+        
+        .brand-logo img {
+            height: auto;
+            width: 300;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            background-color: white;
+            width: 130%;
+        }
+        
+        .login-card-body {
+            padding: 2.5rem;
+        }
+        
+        .login-box-msg {
+            color: #6c757d;
+            margin-bottom: 2rem;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .input-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+        
+        .form-control {
+            height: 50px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            padding-left: 45px;
+            padding-right: 45px;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
+        }
+        
+        .input-group-text {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 50px;
+            width: 45px;
+            background: transparent;
+            border: none;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            height: 50px;
+            border-radius: 8px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+            z-index: 5;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .login-card-body {
+                padding: 1.5rem;
+            }
+            
+            .brand-logo {
+                height: 90px;
+                width: 90px;
+                margin-bottom: 1.2rem;
+            }
+        }
+    </style>
 </head>
 
 <body class="hold-transition login-page">
-    <div class="login-box">
-        <div class="login-logo">
-            <img src="{% static 'dist/img/koli-logo.svg' %}" style="height:50px; width:50px" alt="AdminLTE Logo">
-            <b>Koli</b>Infotech
-        </div>
-        <!-- /.login-logo -->
+    <div class="login-container">
         <div class="card">
             <div class="card-body login-card-body">
-                <p class="login-box-msg">Sign in to start your session</p>
+                <div class="brand-logo">
+                    <img src="{% static 'dist/img/koli-logo.svg' %}" alt="KOLIInfotech Logo">
+                </div>
+                
                 {% if messages %}
                     {% for message in messages %}
                         <div class="alert 
@@ -41,6 +188,9 @@
                             {% endif %}
                             alert-dismissible fade show" role="alert">
                             <strong>{{ message }}</strong>
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
                         </div>
                     {% endfor %}
                 {% endif %}
@@ -48,48 +198,33 @@
                 <form action="{% url 'user_login' %}" method="post">
                     {% csrf_token %}
                     <div class="input-group mb-3">
-                        <input required type="email" name='email' class="form-control" placeholder="Email">
-                        <div class="input-group-append">
-                            <div class="input-group-text">
-                                <span class="fas fa-envelope"></span>
-                            </div>
+                        <input required type="email" name="email" class="form-control" placeholder="Email address">
+                        <div class="input-group-text">
+                            <span class="fas fa-envelope"></span>
                         </div>
                     </div>
+                    
                     <div class="input-group mb-3">
                         <input required type="password" id="password" name="password" class="form-control" placeholder="Password">
-                        <div class="input-group-append">
-                            <div class="input-group-text" style="cursor: pointer;" id="togglePassword">
-                                <span class="fas fa-eye" id="toggleIcon"></span>
-                            </div>
+                        <div class="input-group-text">
+                            <span class="fas fa-lock"></span>
+                        </div>
+                        <div class="password-toggle" id="togglePassword">
+                            <i class="fas fa-eye" id="toggleIcon"></i>
                         </div>
                     </div>
 
-                    <!-- <div class="input-group mb-3">
-                        <div class="g-recaptcha" data-sitekey="{{SITE_KEY}}"></div>
-                    </div> -->
                     <div class="row">
-                        <!-- <div class="col-8">
-                            <div class="icheck-primary">
-                                <input type="checkbox" id="remember">
-                                <label for="remember">
-                                    Remember Me
-                                </label>
-                            </div>
-                        </div> -->
                         <div class="col-12">
-                            <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fas fa-sign-in-alt mr-2"></i> Sign In
+                            </button>
                         </div>
                     </div>
                 </form>
-
-                <!-- <p class="mb-1">
-                    <a href="{% url 'password_reset' %}">I forgot my password</a>
-                </p> -->
             </div>
-            <!-- /.login-card-body -->
         </div>
     </div>
-    <!-- /.login-box -->
 
     <!-- jQuery -->
     <script src="{% static 'plugins/jquery/jquery.min.js' %}"></script>
@@ -99,20 +234,19 @@
     <script src="{% static 'dist/js/adminlte.min.js' %}"></script>
 
     <script>
-        const togglePassword = document.getElementById("togglePassword");
-        const passwordInput = document.getElementById("password");
-        const toggleIcon = document.getElementById("toggleIcon");
+        document.addEventListener('DOMContentLoaded', function() {
+            const togglePassword = document.getElementById("togglePassword");
+            const passwordInput = document.getElementById("password");
+            const toggleIcon = document.getElementById("toggleIcon");
 
-        togglePassword.addEventListener("click", function () {
-            const isHidden = passwordInput.type === "password";
-            passwordInput.type = isHidden ? "text" : "password";
-
-            // Toggle between eye and eye-slash icon
-            toggleIcon.classList.toggle("fa-eye", !isHidden);
-            toggleIcon.classList.toggle("fa-eye-slash", isHidden);
+            togglePassword.addEventListener("click", function() {
+                const isHidden = passwordInput.type === "password";
+                passwordInput.type = isHidden ? "text" : "password";
+                toggleIcon.classList.toggle("fa-eye-slash");
+                toggleIcon.classList.toggle("fa-eye");
+            });
         });
     </script>
-
 </body>
 
 </html>

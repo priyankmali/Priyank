@@ -97,7 +97,32 @@
         background-color: #dc3545;
         color: white;
     }
-    
+
+    /* Status Badges */
+    .badge-pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    .badge-in-progress {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .badge-resolved {
+        background-color: #28a745;
+        color: white;
+    }
+    .badge-rejected {
+        background-color: #dc3545;
+        color: white;
+    }
+    /* Unread dot */
+    .unread-dot {
+        font-size: 8px;
+        margin-left: 5px;
+        margin-top: 15px;
+        color: #dc3545;
+    }
+
     /* Responsive Adjustments */
     @media (max-width: 768px) {
         .form-inline .form-group {
@@ -191,8 +216,8 @@
                                                 data-target="#assetModal-{{ asset.id }}">
                                             <i class="fas fa-handshake mr-1"></i> Process Request
                                         </button>
-                                        {% if not asset.is_read %}
-                                            <span class="badge badge-danger ml-2">New</span>
+                                        {% if asset.id in unread_notifications %}
+                                            <i class="fas fa-circle unread-dot" title="Unread"></i>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -261,6 +286,9 @@
                                                 data-target="#issueModal-{{ issue.id }}">
                                             <i class="fas fa-tools"></i> In Progress
                                         </button>
+                                        {% if issue.id in unread_notifications %}
+                                            <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% empty %}
@@ -310,6 +338,9 @@
                                                 data-target="#issueModal-{{ issue.id }}">
                                             <i class="fas fa-tools"></i> Pending
                                         </button>
+                                        {% if issue.id in unread_notifications %}
+                                            <i class="fas fa-circle unread-dot" title="Unread"></i>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% empty %}

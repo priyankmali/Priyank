@@ -34,12 +34,11 @@
                                         <td data-title="Email">{{ manager.email }}</td>
                                         <td data-title="Gender">{{ manager.gender }}</td>
                                         <td data-title="Division">{{ manager.manager.division.name }}</td>
-                                        <td data-title="Avatar">
+                                        <td data-title="Avatar" class="text-center">
                                             {% if manager.profile_pic == "" %}
                                             <span class="text-muted">No Image</span>
                                             {% else %}
-                                            <img class="img img-fluid rounded-circle" height="40" width="40"
-                                                 src="{{ manager.profile_pic }}" alt="Manager Avatar">
+                                            <img class="manager-avatar" src="{{ manager.profile_pic }}" alt="Manager Avatar">
                                             {% endif %}
                                         </td>
                                         <td data-title="Actions">
@@ -132,7 +131,8 @@
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
-        
+
+                
         /* Optional: Stacked table rows on mobile */
         /* Uncomment if you prefer this approach */
         /*
@@ -184,13 +184,22 @@
         }
         */
     }
-    
+
     /* Avatar image styling */
-    .img-fluid.rounded-circle {
-        max-width: 40px;
-        height: auto;
+    .manager-avatar {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
-    
+
+    /* Center avatar in table cell */
+    td.text-center {
+        vertical-align: middle;
+    }
+
     /* Button group styling */
     .btn-group-sm > .btn {
         padding: 0.25rem 0.5rem;
